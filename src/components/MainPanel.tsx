@@ -1,5 +1,5 @@
-import { useRef } from 'react';
-import { Download, HelpCircle, ShieldCheck } from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
+import { Download, HelpCircle, ShieldCheck, ExternalLink } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { ScoreCards } from './ScoreCards';
 import { CategoryDetails } from './CategoryDetails';
@@ -23,6 +23,30 @@ interface MainPanelProps {
 
 export function MainPanel({ results, isAuditing, previewUrl, frameName }: MainPanelProps) {
   const printRef = useRef<HTMLDivElement>(null);
+  const [loadingStep, setLoadingStep] = useState(0);
+
+  const steps = [
+    "Conectando ao Proxy...",
+    "Buscando frame no Figma...",
+    "Lendo estrutura de camadas...",
+    "Validando tokens DS4FUN...",
+    "Calculando scores de governança...",
+    "Gerando relatório final..."
+  ];
+
+  useEffect(() => {
+    let interval: number | undefined;
+    if (isAuditing) {
+      setLoadingStep(0);
+      interval = window.setInterval(() => {
+        setLoadingStep(prev => (prev < steps.length - 1 ? prev + 1 : prev));
+      }, 1500);
+    } else {
+      setLoadingStep(0);
+      if (interval) clearInterval(interval);
+    }
+    return () => { if (interval) clearInterval(interval); };
+  }, [isAuditing]);
 
   const handleDownloadPDF = () => {
     if (!printRef.current) return;
@@ -41,10 +65,19 @@ export function MainPanel({ results, isAuditing, previewUrl, frameName }: MainPa
 
   if (isAuditing) {
     return (
-      <main className="flex-1 flex items-center justify-center">
-         <div className="flex flex-col items-center gap-4 text-[#A1A1AA]">
-            <div className="w-8 h-8 border-4 border-[#E4E4E7] border-t-[#6366F1] rounded-full animate-spin" />
-            <p>Analisando componentes e tokens...</p>
+      <main className="flex-1 flex items-center justify-center bg-white">
+         <div className="flex flex-col items-center gap-6 max-w-xs w-full">
+            <div className="w-12 h-12 border-4 border-[#F4F4F5] border-t-[#6366F1] rounded-full animate-spin shadow-inner" />
+            <div className="space-y-2 text-center w-full">
+               <p className="text-sm font-semibold text-[#18181B]">{steps[loadingStep]}</p>
+               <div className="w-full bg-[#F4F4F5] h-1.5 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-[#6366F1] transition-all duration-1000 ease-out" 
+                    style={{ width: `${((loadingStep + 1) / steps.length) * 100}%` }}
+                  />
+               </div>
+               <p className="text-[10px] text-[#A1A1AA] uppercase tracking-widest font-bold">Auditoria em Curso</p>
+            </div>
          </div>
       </main>
     );
@@ -74,7 +107,7 @@ export function MainPanel({ results, isAuditing, previewUrl, frameName }: MainPa
             <h2 className="text-xl font-semibold tracking-tight">Análise da Interface</h2>
             <div className="flex items-center gap-2 mt-1">
                <div className="w-2 h-2 rounded-full bg-[#10B981]" />
-               <span className="text-xs font-medium text-[#71717A]">Análise concluída hoje às {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+               <span className="text-xs font-medium text-[#71717A]">Análise concluída em {new Date(results.auditedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
             </div>
          </div>
          <button 
@@ -88,10 +121,10 @@ export function MainPanel({ results, isAuditing, previewUrl, frameName }: MainPa
 
       {/* Printable Area Container */}
       <div ref={printRef} className="p-8 max-w-5xl mx-auto space-y-8 bg-[#FAFAFA]">
-          {/* Header for PDF only (Hidden in web) */}
+          {/* Header for PDF only */}
           <div className="hidden print:block mb-8 pb-4 border-b border-[#E4E4E7]">
               <h1 className="text-2xl font-bold tracking-tight mb-2">Relatório de Governança DS Auditor</h1>
-              <p className="text-sm text-[#71717A]">Frame analisado: {frameName ?? 'N/A'} | Data: {new Date().toLocaleDateString()}</p>
+              <p className="text-sm text-[#71717A]">Frame analisado: {frameName ?? 'N/A'} | Data: {new Date(results.auditedAt).toLocaleDateString()}</p>
           </div>
 
           <ScoreCards 
@@ -108,16 +141,33 @@ export function MainPanel({ results, isAuditing, previewUrl, frameName }: MainPa
                     Visualização do Frame
                  </h3>
                  <div className="bg-[#E4E4E7] rounded-2xl aspect-[3/4] flex flex-col items-center justify-center border border-[#D4D4D8] overflow-hidden relative group">
-                    <img 
-                       src={previewUrl ?? 'https://images.unsplash.com/photo-1618761714954-0b8cd0026356?auto=format&fit=crop&w=400&q=80'}
-                       alt="Figma Frame Preview" 
-                       className="object-cover w-full h-full opacity-60 grayscale group-hover:grayscale-0 transition-all duration-500"
-                    />
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent p-4 flex flex-col items-center">
-                       <span className="text-xs text-white/90 font-medium bg-black/40 px-2 py-1 rounded backdrop-blur-sm">
-                         {frameName ?? 'Frame Preview'}
-                       </span>
-                    </div>
+                    {previewUrl ? (
+                        <>
+                          <img 
+                            src={previewUrl}
+                            alt="Figma Frame Preview" 
+                            className="object-cover w-full h-full opacity-60 grayscale group-hover:grayscale-0 transition-all duration-500"
+                          />
+                          <a 
+                            href={previewUrl} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity no-print"
+                          >
+                            <div className="bg-white px-3 py-1.5 rounded-lg flex items-center gap-2 text-xs font-bold text-black shadow-lg">
+                              <ExternalLink className="w-3 h-3" />
+                              ABRIR IMAGEM ↗
+                            </div>
+                          </a>
+                        </>
+                    ) : (
+                        <div className="p-6 text-center space-y-2">
+                           <div className="w-10 h-10 bg-[#D4D4D8] rounded-full flex items-center justify-center mx-auto">
+                              <ShieldCheck className="w-5 h-5 text-[#A1A1AA]" />
+                           </div>
+                           <p className="text-[10px] text-[#71717A] font-bold uppercase tracking-tighter italic">Preview bloqueado por CORS (S3)</p>
+                        </div>
+                    )}
                  </div>
                  
                  {/* Internal Summary Sidebar */}

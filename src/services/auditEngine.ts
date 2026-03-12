@@ -98,7 +98,7 @@ export const DS4FUN_RADII = new Set([0, 8, 16, 9999]);
  * input-sm: padding 8/16, gap 12; input-md: padding 16/16, gap 8; input-lg: padding 24/24, gap 16
  * checkbox: gap 8; dropdown: gap 8; modal: padding 24/32; card: padding 16/24
  */
-export const DS4FUN_SPACING = new Set([0, 4, 8, 12, 16, 24, 32, 40, 48, 64, 80, 96]);
+export const DS4FUN_SPACING = new Set([0, 4, 8, 12, 16, 24, 32, 40, 48]);
 
 /**
  * DS4FUN component prefixes — Figma INSTANCE layers should start with one of these.
@@ -208,16 +208,30 @@ function checkColors(layers: FigmaLayer[]): AuditIssue[] {
 
 function checkTypography(layers: FigmaLayer[]): AuditIssue[] {
   const issues: AuditIssue[] = [];
+  const ALLOWED_SIZES = new Set([12, 16, 18, 20, 24, 32]);
+
   for (const layer of layers) {
     if (layer.type !== 'TEXT') continue;
 
+    // Família
     if (layer.fontFamily && !DS4FUN_FONTS.has(layer.fontFamily)) {
       issues.push({
         severity: 'error',
         layerName: layer.name,
         layerId: layer.id,
-        message: `"${layer.name}" usa fonte "${layer.fontFamily}" — não faz parte do DS4FUN.`,
-        suggestion: `Use "Inter" para corpo de texto/UI ou "Montserrat" para títulos (--font-family-inter / --font-family-montserrat).`,
+        message: `"${layer.name}" usa fonte "${layer.fontFamily}" — proibida.`,
+        suggestion: `Use Montserrat (Títulos) ou Inter (Corpo).`,
+      });
+    }
+
+    // Tamanho
+    if (layer.fontSize && !ALLOWED_SIZES.has(layer.fontSize)) {
+      issues.push({
+        severity: 'error',
+        layerName: layer.name,
+        layerId: layer.id,
+        message: `Tamanho ${layer.fontSize}px fora da escala tipográfica.`,
+        suggestion: `Use tamanhos da escala: 12, 16, 18, 20, 24 ou 32px.`,
       });
     }
   }
@@ -290,29 +304,18 @@ function checkComponents(layers: FigmaLayer[]): AuditIssue[] {
 function checkNaming(layers: FigmaLayer[]): AuditIssue[] {
   const issues: AuditIssue[] = [];
   for (const layer of layers) {
-    // Detect snake_case in Frames/Groups — DS4FUN uses PascalCase or kebab-case
-    if ((layer.type === 'FRAME' || layer.type === 'GROUP') && /[a-z]_[a-z]/.test(layer.name)) {
-      const suggestion = layer.name
-        .split('_')
-        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join('');
-      issues.push({
-        severity: 'warning',
-        layerName: layer.name,
-        layerId: layer.id,
-        message: `Frame/Group "${layer.name}" usa snake_case — a convenção DS4FUN é PascalCase.`,
-        suggestion: `Renomeie para "${suggestion}".`,
-      });
-    }
-    // Detect all-caps layers (layout frames shouldn't be UPPERCASE)
-    if ((layer.type === 'FRAME') && /^[A-Z_]{4,}$/.test(layer.name)) {
-      issues.push({
-        severity: 'warning',
-        layerName: layer.name,
-        layerId: layer.id,
-        message: `Frame "${layer.name}" está em CAPS LOCK — use PascalCase nos nomes de camadas.`,
-        suggestion: `Renomeie para "${layer.name.charAt(0) + layer.name.slice(1).toLowerCase()}".`,
-      });
+    if (layer.type === 'FRAME' || layer.type === 'GROUP') {
+      // Regra Sênior: PascalCase obrigatório para frames/groups
+      const isPascal = /^[A-Z][a-zA-Z0-9]*$/.test(layer.name);
+      if (!isPascal && !layer.name.includes('/')) {
+        issues.push({
+          severity: 'warning',
+          layerName: layer.name,
+          layerId: layer.id,
+          message: `Camada "${layer.name}" deve usar PascalCase.`,
+          suggestion: `Ex: HeaderMain em vez de ${layer.name}.`,
+        });
+      }
     }
   }
   return issues;
@@ -321,12 +324,14 @@ function checkNaming(layers: FigmaLayer[]): AuditIssue[] {
 // ─── Score Calculation ────────────────────────────────────────────────────
 
 function calculateScore(allIssues: AuditIssue[], totalLayers: number): { score: number; compliance: number } {
-  const errors = allIssues.filter(i => i.severity === 'error').length;
-  const warnings = allIssues.filter(i => i.severity === 'warning').length;
+  // Score do Engenheiro Sênior: Base 100
+  // -5 para Erro Crítico (error)
+  // -2 para Alerta (warning)
+  const criticals = allIssues.filter(i => i.severity === 'error').length;
+  const alerts = allIssues.filter(i => i.severity === 'warning').length;
 
-  // DS4FUN governance: errors are critical (block PR), warnings are advisory
-  const penalties = errors * 6 + warnings * 2;
-  const score = Math.max(0, Math.min(100, 100 - penalties));
+  const penalties = (criticals * 5) + (alerts * 2);
+  const score = Math.max(0, 100 - penalties);
 
   const layersWithIssues = new Set(allIssues.map(i => i.layerId).filter(Boolean)).size;
   const compliance = totalLayers > 0

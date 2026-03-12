@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { Layers, Palette, Baseline, ScanLine, Maximize, FileText, CheckCircle2, Search } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Layers, Palette, Baseline, ScanLine, Maximize, FileText, CheckCircle2, Search, AlertCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { checkProxyHealth } from '../services/figmaService';
 
 interface SidebarProps {
   onStartAudit: (url: string, activeCategories: Set<string>) => void;
@@ -20,6 +21,17 @@ const CATEGORIES = [
 
 export function Sidebar({ onStartAudit, isAuditing, url, setUrl }: SidebarProps) {
   const [activeCategories, setActiveCategories] = useState<Set<string>>(new Set(CATEGORIES.map(c => c.id)));
+  const [isConnected, setIsConnected] = useState(false);
+
+  useEffect(() => {
+    const check = async () => {
+      const { connected } = await checkProxyHealth();
+      setIsConnected(connected);
+    };
+    check();
+    const interval = setInterval(check, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const toggleCategory = (id: string) => {
     const next = new Set(activeCategories);
@@ -48,9 +60,14 @@ export function Sidebar({ onStartAudit, isAuditing, url, setUrl }: SidebarProps)
           <h1 className="text-xl font-semibold tracking-tight">DS Auditor</h1>
         </div>
         
-        <div className="flex items-center gap-2 text-sm text-[#059669] font-medium bg-[#ECFDF5] px-3 py-1.5 rounded-full w-fit">
-          <CheckCircle2 className="w-4 h-4" />
-          MCP Conectado
+        <div className={cn(
+          "flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-full w-fit transition-colors",
+          isConnected 
+            ? "text-[#059669] bg-[#ECFDF5]" 
+            : "text-[#DC2626] bg-[#FEF2F2]"
+        )}>
+          {isConnected ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+          {isConnected ? "MCP Conectado" : "MCP Desconectado"}
         </div>
       </div>
 

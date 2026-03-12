@@ -138,56 +138,81 @@ async function initMCPSession() {
 
 /**
  * Extracts the file key and node ID from a Figma URL.
- * e.g. https://www.figma.com/design/cwW0MoRfB11C40OnJgf8JV/...?node-id=38-826
  */
 function parseFigmaUrl(url) {
   try {
     const urlObj = new URL(url);
-    // Match /design/<fileKey>/ or /file/<fileKey>/
-    const pathMatch = urlObj.pathname.match(/\/(design|file)\/([^/]+)/);
+    const pathMatch = urlObj.pathname.match(/\/(design|file|board)\/([^/]+)/);
     const fileKey = pathMatch ? pathMatch[2] : null;
     const nodeParam = urlObj.searchParams.get('node-id');
-    // Figma uses - in URL params but : internally
     const nodeId = nodeParam ? nodeParam.replace('-', ':') : null;
     return { fileKey, nodeId };
   } catch {
-    // Bare node ID like "38:826"
-    return { fileKey: null, nodeId: url.trim() };
+    // Se não for URL, tenta tratar como Node ID direto
+    if (/^\d+[:-]\d+$/.test(url.trim())) return { fileKey: null, nodeId: url.trim().replace('-', ':') };
+    return { fileKey: null, nodeId: null };
   }
 }
-
 /**
- * Extracts a list of available MCP tools from the Figma server.
+ * POST /api/audit
+ * 
+ * Receives a Figma URL, extracts FileKey/NodeID, and runs the MCP toolchain.
  */
-async function getAvailableTools() {
-  const response = await callMCP('tools/list', {});
-  if (response?.result?.tools) return response.result.tools;
-  return [];
-}
+app.post('/api/audit', async (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ error: 'URL do Figma é obrigatória' });
 
-// ─── Routes ────────────────────────────────────────────────────────────────
-
-app.get('/api/health', async (_req, res) => {
   try {
-    if (!mcpSessionId) await initMCPSession();
-    const tools = await getAvailableTools();
-    res.json({
-      status: 'ok',
-      mcpConnected: true,
-      sessionId: mcpSessionId,
-      availableTools: tools.map(t => t.name),
+    const { fileKey, nodeId } = parseFigmaUrl(url);
+    if (!nodeId) throw new Error('Não foi possível extrair o Node ID da URL fornecida.');
+
+    console.log(`[Proxy] Iniciando Auditoria: File=${fileKey}, Node=${nodeId}`);
+
+    // Passo 1: Get Metadata (Estrutura XML)
+    console.log('[Proxy] Passo 1: Coletando metadados...');
+    const xmlResult = await callMCP('tools/call', {
+      name: 'get_metadata',
+      arguments: { nodeId },
     });
+    const xml = xmlResult?.result?.content?.[0]?.text || xmlResult?.result || '';
+
+    // Passo 2: Get Variables (Tokens de Design)
+    console.log('[Proxy] Passo 2: Extraindo definições de variáveis...');
+    const varResult = await callMCP('tools/call', {
+      name: 'get_variable_defs',
+      arguments: { nodeId },
+    });
+    let variables = {};
+    const varText = varResult?.result?.content?.[0]?.text;
+    if (varText) {
+      try {
+        variables = JSON.parse(varText);
+      } catch (e) {
+        console.warn('[Proxy] Falha ao parsear variáveis:', e.message);
+      }
+    }
+
+    // Passo 3: Get Design Context (Layout e Propriedades específicas)
+    console.log('[Proxy] Passo 3: Analisando contexto de design...');
+    const ctxResult = await callMCP('tools/call', {
+      name: 'get_design_context',
+      arguments: { nodeId },
+    });
+    // O design_context pode vir como texto puro ou JSON dependendo do MCP, tratamos ambos
+    const context = ctxResult?.result?.content?.[0]?.text || '';
+
+    // Reconstruir o objeto do nó para o motor de auditoria
+    const normalized = parseXmlMetadata(xml, nodeId, fileKey, variables, context);
+    
+    res.json(normalized);
   } catch (err) {
-    res.status(503).json({ status: 'error', mcpConnected: false, error: err.message });
+    console.error('[Proxy] Falha na Auditoria:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
 /**
- * GET /api/figma/node?url=<figmaUrl>
- * 
- * Fetches node metadata from the Figma MCP server.
- * Since Dev Mode MCP doesn't have get_node_details, we use get_metadata
- * and get_design_context to reconstruct the tree.
+ * MANTIDO PARA COMPATIBILIDADE: GET /api/figma/node?url=<figmaUrl>
  */
 app.get('/api/figma/node', async (req, res) => {
   const { url } = req.query;
@@ -195,59 +220,46 @@ app.get('/api/figma/node', async (req, res) => {
 
   try {
     const { fileKey, nodeId } = parseFigmaUrl(url);
-    console.log(`[Proxy] Fetching node (Dev Mode Mode): fileKey=${fileKey}, nodeId=${nodeId}`);
-
-    // 1. Get metadata (XML structure)
-    const xmlResult = await callMCP('tools/call', {
-      name: 'get_metadata',
-      arguments: { nodeId },
-    });
+    const xmlResult = await callMCP('tools/call', { name: 'get_metadata', arguments: { nodeId } });
     const xml = xmlResult?.result?.content?.[0]?.text || xmlResult?.result || '';
-
-    // 2. Get variables/tokens for the node (to find colors/spacing)
-    const varResult = await callMCP('tools/call', {
-      name: 'get_variable_defs',
-      arguments: { nodeId },
-    });
+    const varResult = await callMCP('tools/call', { name: 'get_variable_defs', arguments: { nodeId } });
     const variables = varResult?.result || {};
-
-    // 3. Get design context (to find more styles/className)
-    const ctxResult = await callMCP('tools/call', {
-      name: 'get_design_context',
-      arguments: { nodeId },
-    });
+    const ctxResult = await callMCP('tools/call', { name: 'get_design_context', arguments: { nodeId } });
     const context = ctxResult?.result?.content?.[0]?.text || '';
 
-    // Normalize the MCP response into our FigmaNode format
-    console.log('[Proxy] XML snippet:', xml.slice(0, 100));
-    console.log('[Proxy] Variables:', JSON.stringify(variables).slice(0, 100));
     const normalized = parseXmlMetadata(xml, nodeId, fileKey, variables, context);
     res.json(normalized);
   } catch (err) {
-    console.error('[Proxy] Error fetching node:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
 /**
- * GET /api/figma/image?nodeId=<id>&fileKey=<key>
+ * GET /api/figma/image?nodeId=<id>
  */
 app.get('/api/figma/image', async (req, res) => {
-  const { nodeId, fileKey } = req.query;
-  if (!nodeId || !fileKey) return res.status(400).json({ error: 'nodeId and fileKey required' });
-
+  const { nodeId } = req.query;
   try {
     const rpcResult = await callMCP('tools/call', {
       name: 'get_screenshot',
       arguments: { nodeId },
     });
-
     const imageUrl = rpcResult?.result?.content?.[0]?.text || null;
     res.json({ imageUrl });
   } catch (err) {
-    console.error('[Proxy] Error fetching image:', err.message);
     res.json({ imageUrl: null });
   }
+});
+
+/**
+ * GET /api/health
+ */
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    mcpConnected: mcpSessionId !== null,
+    mcpSessionId
+  });
 });
 
 // ─── Data Normalization (XML Parser) ──────────────────────────────────────────
@@ -256,33 +268,39 @@ app.get('/api/figma/image', async (req, res) => {
  * Parses the XML metadata returned by get_metadata into a layer tree.
  */
 function parseXmlMetadata(xml, targetNodeId, fileKey, variables, context) {
-  const layers = [];
+  // Regex robusta para capturar atributos XML
+  const tagRegex = /<([a-z0-9]+)\s+([^>]*)\/?>/gi;
+  const attrRegex = /([a-z]+)="([^"]*)"/gi;
   
-  // Basic regex to find XML tags and attributes
-  // <type id="..." name="..." x="..." y="..." width="..." height="..." [cornerRadius="..."] />
-  const tagRegex = /<([a-z]+)\s+id="([^"]+)"\s+name="([^"]+)"\s+x="([^"]+)"\s+y="([^"]+)"\s+width="([^"]+)"\s+height="([^"]+)"([^>]*)\/?>/gi;
   let match;
-  
-  const allLayersById = new Map();
   const topLevel = [];
+  const allLayersById = new Map();
 
   while ((match = tagRegex.exec(xml)) !== null) {
-    const [_, type, id, name, x, y, width, height, extra] = match;
+    const [fullTag, type, attrString] = match;
+    const attrs = {};
+    let attrMatch;
+    while ((attrMatch = attrRegex.exec(attrString)) !== null) {
+      attrs[attrMatch[1]] = attrMatch[2];
+    }
+
+    const { id, name, x, y, width, height, cornerRadius } = attrs;
+    if (!id) continue;
+
     const layer = {
       id,
-      name,
+      name: name || id,
       type: type.toUpperCase(),
       width: parseFloat(width) || 0,
       height: parseFloat(height) || 0,
+      cornerRadius: cornerRadius ? parseFloat(cornerRadius) : undefined,
       fills: [],
       children: []
     };
 
-    // Extract cornerRadius if present
-    const radiusMatch = extra.match(/cornerRadius="([^"]+)"/i);
-    if (radiusMatch) layer.cornerRadius = parseFloat(radiusMatch[1]);
-
-    // Apply tokens if this is the target node or a main component
+    // Aplicar estilos apenas ao nó alvo ou se for um componente filho relevante
+    // Nota: O Dev Mode MCP costuma retornar variáveis e propriedades apenas para o nó selecionado
+    // mas o XML contém a árvore. Aqui tentamos propagar ou aplicar onde possível.
     if (id === targetNodeId) {
       applyStylesFromVariables(layer, variables);
       applyStylesFromContext(layer, context);
@@ -290,16 +308,20 @@ function parseXmlMetadata(xml, targetNodeId, fileKey, variables, context) {
 
     allLayersById.set(id, layer);
     
-    // For simplicity in the auditor, if we can't find parent easily in the flat XML list,
-    // we'll just treat them as children based on the XML order (indentation logic is hard with regex)
-    // Actually, get_metadata returns a flat list usually but nested nodes have their own tags.
-    // In our case, we'll just return the main node and its immediate "children" if found.
-    if (id === targetNodeId || targetNodeId === '0:1') {
+    // Tenta encontrar o pai na árvore (pelo ID se for hierárquico, ex: "1:2-3" pai de "1:2-4"?)
+    // No XML do Figma MCP, as tags costumam vir aninhadas, mas nossa regex é flat.
+    // Para simplificar e garantir resultados reais para o motor de auditoria, 
+    // assumimos que tudo que não é o targetNodeId é filho dele se o targetNodeId for o root do XML.
+    if (id !== targetNodeId) {
+      const rootPayload = allLayersById.get(targetNodeId);
+      if (rootPayload) {
+        rootPayload.children.push(layer);
+      }
+    } else {
       topLevel.push(layer);
     }
   }
 
-  // Find the target node
   const root = allLayersById.get(targetNodeId) || topLevel[0] || { id: targetNodeId, name: 'Frame', type: 'FRAME', layers: [] };
 
   return {
@@ -316,35 +338,38 @@ function parseXmlMetadata(xml, targetNodeId, fileKey, variables, context) {
 
 function applyStylesFromVariables(layer, variables) {
   for (const [name, value] of Object.entries(variables)) {
-    // Colors
-    if (typeof value === 'string' && (value.startsWith('#') || value.startsWith('rgb'))) {
+    const valStr = String(value);
+    // Cores
+    if (valStr.startsWith('#') || valStr.startsWith('rgb')) {
       layer.fills.push({
         type: 'SOLID',
-        hex: value,
+        hex: valStr.toUpperCase(),
         variableName: name.replace(/\//g, '-')
       });
     }
-    // Radii
-    if (name.includes('radius')) {
-      layer.cornerRadius = typeof value === 'string' ? parseFloat(value) : (typeof value === 'number' ? value : 0);
+    // Raios
+    if (name.toLowerCase().includes('radius')) {
+      layer.cornerRadius = parseFloat(valStr);
     }
-    // Typography
-    if (typeof value === 'string' && value.includes('Font(')) {
-      const fontMatch = value.match(/family: "([^"]+)"/);
+    // Tipografia
+    if (valStr.includes('Font(')) {
+      const fontMatch = valStr.match(/family: "([^"]+)"/);
       if (fontMatch) layer.fontFamily = fontMatch[1];
-      const sizeMatch = value.match(/size: ([^,]+)/);
+      const sizeMatch = valStr.match(/size: ([\d.]+)/);
       if (sizeMatch) layer.fontSize = parseFloat(sizeMatch[1]);
+      const weightMatch = valStr.match(/weight: ([\d.]+)/);
+      if (weightMatch) layer.fontWeight = parseFloat(weightMatch[1]);
     }
   }
 }
 
 function applyStylesFromContext(layer, context) {
-  // Search for gap and padding in context code
-  const gapMatch = context.match(/gap-\[var\([^,]+,([\d]+)px\)\]/);
-  if (gapMatch) layer.gap = parseFloat(gapMatch[1]);
+  // Parsing de gap e padding via Regex no código gerado pelo context
+  const gapMatch = context.match(/gap-\[var\([^,]+,([\d.]+)px\)\]|gap-([\d.]+)/);
+  if (gapMatch) layer.gap = parseFloat(gapMatch[1] || gapMatch[2]);
 
-  const padMatch = context.match(/p[xy]?-\[var\([^,]+,([\d]+)px\)\]/);
-  if (padMatch) layer.padding = parseFloat(padMatch[1]);
+  const pMatch = context.match(/p[xy]-\[var\([^,]+,([\d.]+)px\)\]|p-([\d.]+)/);
+  if (pMatch) layer.padding = parseFloat(pMatch[1] || pMatch[2]);
 }
 
 // ─── Start ──────────────────────────────────────────────────────────────────
@@ -355,11 +380,8 @@ app.listen(PORT, async () => {
   
   try {
     await initMCPSession();
-    const tools = await getAvailableTools();
-    console.log(`✅ Figma MCP connected! Available tools:`);
-    tools.forEach(t => console.log(`   • ${t.name}: ${t.description || ''}`));
+    console.log(`✅ Figma MCP conectado com sucesso!`);
   } catch (err) {
     console.warn(`⚠️  Figma MCP connection failed: ${err.message}`);
-    console.warn('   Certifique-se que o Figma Desktop App está aberto com o Dev Mode ativo.\n');
   }
 });
