@@ -11,6 +11,7 @@
  *   GET /api/figma/node?url=<figmaUrl>  → Returns node tree from Figma
  *   GET /api/figma/image?nodeId=<id>&fileKey=<key> → Returns image URL
  *   GET /api/health → Status check
+ *   GET /api/audit/stream?url=... → SSE stream for real-time audit
  */
 
 import express from 'express';
@@ -24,16 +25,9 @@ app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:5173'] }));
 app.use(express.json());
 
 // ─── Session Management ────────────────────────────────────────────────────
-// The Figma MCP uses session-based Streamable HTTP transport (MCP spec 2024-11-05)
-
 let mcpSessionId = null;
 
-/**
- * Calls the Figma MCP server with a JSON-RPC request.
- * Handles session initialization if needed.
- */
 async function callMCP(method, params = {}) {
-  // Ensure we have a session
   if (!mcpSessionId) {
     await initMCPSession();
   }
@@ -53,7 +47,6 @@ async function callMCP(method, params = {}) {
     }),
   });
 
-  // Capture new session ID from response headers
   const newSessionId = response.headers.get('Mcp-Session-Id');
   if (newSessionId) mcpSessionId = newSessionId;
 
@@ -64,10 +57,8 @@ async function callMCP(method, params = {}) {
 
   const contentType = response.headers.get('content-type') || '';
 
-  // Handle SSE stream (collect the single result)
   if (contentType.includes('text/event-stream')) {
     const text = await response.text();
-    // Parse the last "data:" line
     const lines = text.split('\n');
     for (let i = lines.length - 1; i >= 0; i--) {
       if (lines[i].startsWith('data: ')) {
@@ -82,9 +73,6 @@ async function callMCP(method, params = {}) {
   return response.json();
 }
 
-/**
- * Initializes an MCP session by sending the `initialize` handshake.
- */
 async function initMCPSession() {
   const response = await fetch(MCP_URL, {
     method: 'POST',
@@ -111,15 +99,13 @@ async function initMCPSession() {
   const sessionId = response.headers.get('Mcp-Session-Id');
   if (sessionId) mcpSessionId = sessionId;
 
-  // Consume the response body
   const contentType = response.headers.get('content-type') || '';
   if (contentType.includes('text/event-stream')) {
-    await response.text(); // drain
+    await response.text();
   } else {
     await response.json().catch(() => {});
   }
 
-  // Send initialized notification
   await fetch(MCP_URL, {
     method: 'POST',
     headers: {
@@ -131,32 +117,28 @@ async function initMCPSession() {
       jsonrpc: '2.0',
       method: 'notifications/initialized',
     }),
-  }).catch(() => {}); // fire-and-forget
+  }).catch(() => {});
 
   console.log(`[MCP] Session initialized: ${mcpSessionId}`);
 }
 
-/**
- * Extracts the file key and node ID from a Figma URL.
- */
 function parseFigmaUrl(url) {
   try {
     const urlObj = new URL(url);
-    const pathMatch = urlObj.pathname.match(/\/(design|file|board)\/([^/]+)/);
+    const pathMatch = urlObj.pathname.match(/\/(design|file|board)\/([^/]+)\/([^/]+)?/);
     const fileKey = pathMatch ? pathMatch[2] : null;
+    const fileName = pathMatch && pathMatch[3] ? decodeURIComponent(pathMatch[3]).replace(/_/g, ' ') : 'Arquivo Figma';
     const nodeParam = urlObj.searchParams.get('node-id');
     const nodeId = nodeParam ? nodeParam.replace('-', ':') : null;
-    return { fileKey, nodeId };
+    return { fileKey, nodeId, fileName };
   } catch {
-    // Se não for URL, tenta tratar como Node ID direto
-    if (/^\d+[:-]\d+$/.test(url.trim())) return { fileKey: null, nodeId: url.trim().replace('-', ':') };
-    return { fileKey: null, nodeId: null };
+    if (/^\d+[:-]\d+$/.test(url.trim())) return { fileKey: null, nodeId: url.trim().replace('-', ':'), fileName: 'Frame Direto' };
+    return { fileKey: null, nodeId: null, fileName: null };
   }
 }
+
 /**
  * POST /api/audit
- * 
- * Receives a Figma URL, extracts FileKey/NodeID, and runs the MCP toolchain.
  */
 app.post('/api/audit', async (req, res) => {
   const { url } = req.body;
@@ -164,120 +146,150 @@ app.post('/api/audit', async (req, res) => {
 
   try {
     const { fileKey, nodeId } = parseFigmaUrl(url);
-    if (!nodeId) throw new Error('Não foi possível extrair o Node ID da URL fornecida.');
+    if (!nodeId) throw new Error('Não foi possível extrair o Node ID.');
 
-    console.log(`[Proxy] Iniciando Auditoria: File=${fileKey}, Node=${nodeId}`);
+    // Step 1: Metadata
+    const metaResult = await callMCP('tools/call', { name: 'get_metadata', arguments: { nodeId } });
+    const xml = metaResult?.result?.content?.[0]?.text || '';
+    const metadata = parseXmlMetadata(xml, nodeId);
 
-    // Passo 1: Get Metadata (Estrutura XML)
-    console.log('[Proxy] Passo 1: Coletando metadados...');
-    const xmlResult = await callMCP('tools/call', {
-      name: 'get_metadata',
-      arguments: { nodeId },
-    });
-    const xml = xmlResult?.result?.content?.[0]?.text || xmlResult?.result || '';
-
-    // Passo 2: Get Variables (Tokens de Design)
-    console.log('[Proxy] Passo 2: Extraindo definições de variáveis...');
-    const varResult = await callMCP('tools/call', {
-      name: 'get_variable_defs',
-      arguments: { nodeId },
-    });
+    // Step 2: Variables
+    const varResult = await callMCP('tools/call', { name: 'get_variable_defs', arguments: { nodeId } });
     let variables = {};
     const varText = varResult?.result?.content?.[0]?.text;
     if (varText) {
-      try {
-        variables = JSON.parse(varText);
-      } catch (e) {
-        console.warn('[Proxy] Falha ao parsear variáveis:', e.message);
-      }
+      try { variables = JSON.parse(varText); } catch(e) {}
     }
 
-    // Passo 3: Get Design Context (Layout e Propriedades específicas)
-    console.log('[Proxy] Passo 3: Analisando contexto de design...');
-    const ctxResult = await callMCP('tools/call', {
-      name: 'get_design_context',
-      arguments: { nodeId },
-    });
-    // O design_context pode vir como texto puro ou JSON dependendo do MCP, tratamos ambos
-    const context = ctxResult?.result?.content?.[0]?.text || '';
-
-    // Reconstruir o objeto do nó para o motor de auditoria
-    const normalized = parseXmlMetadata(xml, nodeId, fileKey, variables, context);
-    
-    res.json(normalized);
-  } catch (err) {
-    console.error('[Proxy] Falha na Auditoria:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-/**
- * MANTIDO PARA COMPATIBILIDADE: GET /api/figma/node?url=<figmaUrl>
- */
-app.get('/api/figma/node', async (req, res) => {
-  const { url } = req.query;
-  if (!url) return res.status(400).json({ error: 'url param required' });
-
-  try {
-    const { fileKey, nodeId } = parseFigmaUrl(url);
-    const xmlResult = await callMCP('tools/call', { name: 'get_metadata', arguments: { nodeId } });
-    const xml = xmlResult?.result?.content?.[0]?.text || xmlResult?.result || '';
-    const varResult = await callMCP('tools/call', { name: 'get_variable_defs', arguments: { nodeId } });
-    const variables = varResult?.result || {};
+    // Step 3: Context
     const ctxResult = await callMCP('tools/call', { name: 'get_design_context', arguments: { nodeId } });
     const context = ctxResult?.result?.content?.[0]?.text || '';
 
-    const normalized = parseXmlMetadata(xml, nodeId, fileKey, variables, context);
-    res.json(normalized);
+    // Step 4: Image
+    const imgResult = await callMCP('tools/call', { name: 'get_screenshot', arguments: { nodeId } });
+    const previewUrl = imgResult?.result?.content?.[0]?.text || null;
+
+    res.json({
+      nodeId,
+      fileKey,
+      fileName,
+      name: metadata.name || 'Frame',
+      width: metadata.width || 0,
+      height: metadata.height || 0,
+      previewUrl,
+      layers: [parseXmlTree(xml, nodeId, variables, context)]
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 /**
- * GET /api/figma/image?nodeId=<id>
+ * GET /api/audit/stream?url=...
+ * Real-time feedback via SSE
  */
+app.get('/api/audit/stream', async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).send('URL is required');
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const sendEvent = (step, progress, message, data = null) => {
+    res.write(`data: ${JSON.stringify({ step, progress, message, data })}\n\n`);
+  };
+
+  try {
+    const { fileKey, nodeId, fileName } = parseFigmaUrl(url);
+    if (!nodeId) throw new Error('Não foi possível extrair o Node ID.');
+
+    sendEvent('init', 10, 'Conectando ao Figma MCP...');
+    
+    sendEvent('metadata', 20, 'Extraindo estrutura XML...');
+    const metaResult = await callMCP('tools/call', { name: 'get_metadata', arguments: { nodeId } });
+    const xml = metaResult?.result?.content?.[0]?.text || '';
+    const metadata = parseXmlMetadata(xml, nodeId);
+
+    sendEvent('variables', 40, 'Buscando Tokens de Design...');
+    const varResult = await callMCP('tools/call', { name: 'get_variable_defs', arguments: { nodeId } });
+    let variables = {};
+    const varText = varResult?.result?.content?.[0]?.text;
+    if (varText) {
+      try { variables = JSON.parse(varText); } catch(e) {}
+    }
+
+    sendEvent('context', 60, 'Analisando Layout e Propriedades...');
+    const ctxResult = await callMCP('tools/call', { name: 'get_design_context', arguments: { nodeId } });
+    const context = ctxResult?.result?.content?.[0]?.text || '';
+
+    const rootLayer = parseXmlTree(xml, nodeId, variables, context);
+
+    sendEvent('image', 80, 'Renderizando screenshot do frame...');
+    const imgResult = await callMCP('tools/call', { name: 'get_screenshot', arguments: { nodeId } });
+    const previewUrl = imgResult?.result?.content?.[0]?.text || null;
+
+    sendEvent('complete', 100, 'Auditoria pronta!', {
+      nodeId,
+      fileKey,
+      fileName,
+      name: metadata.name || 'Frame',
+      width: metadata.width || 0,
+      height: metadata.height || 0,
+      previewUrl,
+      layers: [rootLayer]
+    });
+
+  } catch (err) {
+    sendEvent('error', 0, err.message);
+  } finally {
+    res.end();
+  }
+});
+
 app.get('/api/figma/image', async (req, res) => {
   const { nodeId } = req.query;
   try {
-    const rpcResult = await callMCP('tools/call', {
-      name: 'get_screenshot',
-      arguments: { nodeId },
-    });
-    const imageUrl = rpcResult?.result?.content?.[0]?.text || null;
-    res.json({ imageUrl });
+    const rpcResult = await callMCP('tools/call', { name: 'get_screenshot', arguments: { nodeId } });
+    res.json({ imageUrl: rpcResult?.result?.content?.[0]?.text || null });
   } catch (err) {
     res.json({ imageUrl: null });
   }
 });
 
-/**
- * GET /api/health
- */
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    mcpConnected: mcpSessionId !== null,
-    mcpSessionId
-  });
+app.get('/api/image-proxy', async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).send('URL is required');
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Fetch fail: ${response.status}`);
+    const buffer = await response.arrayBuffer();
+    res.setHeader('Content-Type', response.headers.get('content-type') || 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    res.status(500).send('Proxy error');
+  }
 });
 
-// ─── Data Normalization (XML Parser) ──────────────────────────────────────────
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', mcpConnected: mcpSessionId !== null });
+});
 
 /**
- * Parses the XML metadata returned by get_metadata into a layer tree.
+ * Robust XML Tree Reconstruction
  */
-function parseXmlMetadata(xml, targetNodeId, fileKey, variables, context) {
-  // Regex robusta para capturar atributos XML
-  const tagRegex = /<([a-z0-9]+)\s+([^>]*)\/?>/gi;
-  const attrRegex = /([a-z]+)="([^"]*)"/gi;
-  
+function parseXmlTree(xml, targetNodeId, variables, context) {
+  if (!xml) return null;
+  const tagRegex = /<([\w\d]+)\s+([^>]*)\/?>/gi;
+  const attrRegex = /([\w\d-]+)="([^"]*)"/gi;
+  const allLayers = new Map();
   let match;
-  const topLevel = [];
-  const allLayersById = new Map();
+  let firstNode = null;
 
   while ((match = tagRegex.exec(xml)) !== null) {
-    const [fullTag, type, attrString] = match;
+    const [_, type, attrString] = match;
     const attrs = {};
     let attrMatch;
     while ((attrMatch = attrRegex.exec(attrString)) !== null) {
@@ -291,6 +303,8 @@ function parseXmlMetadata(xml, targetNodeId, fileKey, variables, context) {
       id,
       name: name || id,
       type: type.toUpperCase(),
+      x: parseFloat(x) || 0,
+      y: parseFloat(y) || 0,
       width: parseFloat(width) || 0,
       height: parseFloat(height) || 0,
       cornerRadius: cornerRadius ? parseFloat(cornerRadius) : undefined,
@@ -298,48 +312,70 @@ function parseXmlMetadata(xml, targetNodeId, fileKey, variables, context) {
       children: []
     };
 
-    // Aplicar estilos apenas ao nó alvo ou se for um componente filho relevante
-    // Nota: O Dev Mode MCP costuma retornar variáveis e propriedades apenas para o nó selecionado
-    // mas o XML contém a árvore. Aqui tentamos propagar ou aplicar onde possível.
-    if (id === targetNodeId) {
+    if (!firstNode) firstNode = layer;
+
+    const normId = id.replace(/:/g, '-');
+    const normTarget = targetNodeId.replace(/:/g, '-');
+
+    if (normId === normTarget) {
       applyStylesFromVariables(layer, variables);
       applyStylesFromContext(layer, context);
     }
-
-    allLayersById.set(id, layer);
     
-    // Tenta encontrar o pai na árvore (pelo ID se for hierárquico, ex: "1:2-3" pai de "1:2-4"?)
-    // No XML do Figma MCP, as tags costumam vir aninhadas, mas nossa regex é flat.
-    // Para simplificar e garantir resultados reais para o motor de auditoria, 
-    // assumimos que tudo que não é o targetNodeId é filho dele se o targetNodeId for o root do XML.
-    if (id !== targetNodeId) {
-      const rootPayload = allLayersById.get(targetNodeId);
-      if (rootPayload) {
-        rootPayload.children.push(layer);
+    allLayers.set(id, layer);
+  }
+
+  const normTarget = targetNodeId.replace(/:/g, '-');
+  const root = Array.from(allLayers.values()).find(l => l.id.replace(/:/g, '-') === normTarget) || firstNode;
+  
+  if (!root) return null;
+
+  for (const [id, layer] of allLayers) {
+    if (layer === root) continue;
+    const lastDash = id.lastIndexOf('-');
+    if (lastDash !== -1) {
+      const parentId = id.substring(0, lastDash);
+      const parent = allLayers.get(parentId);
+      if (parent) {
+        parent.children.push(layer);
+        continue;
       }
-    } else {
-      topLevel.push(layer);
+    }
+    if (!root.children.includes(layer)) {
+       root.children.push(layer);
     }
   }
 
-  const root = allLayersById.get(targetNodeId) || topLevel[0] || { id: targetNodeId, name: 'Frame', type: 'FRAME', layers: [] };
+  return root;
+}
 
-  return {
-    nodeId: root.id,
-    fileKey,
-    name: root.name,
-    width: root.width,
-    height: root.height,
-    previewUrl: null,
-    layers: topLevel,
-    rawVariables: variables,
-  };
+function parseXmlMetadata(xml, targetNodeId) {
+  const tagRegex = /<([\w\d]+)\s+([^>]*)\/?>/gi;
+  const attrRegex = /([\w\d-]+)="([^"]*)"/gi;
+  let match;
+  const normTarget = targetNodeId.replace(/:/g, '-');
+
+  while ((match = tagRegex.exec(xml)) !== null) {
+    const [_, type, attrString] = match;
+    const attrs = {};
+    let attrMatch;
+    while ((attrMatch = attrRegex.exec(attrString)) !== null) {
+      attrs[attrMatch[1]] = attrMatch[2];
+    }
+    if (attrs.id && attrs.id.replace(/:/g, '-') === normTarget) {
+      return {
+        name: attrs.name,
+        width: parseFloat(attrs.width),
+        height: parseFloat(attrs.height)
+      };
+    }
+  }
+  return { name: 'Frame', width: 0, height: 0 };
 }
 
 function applyStylesFromVariables(layer, variables) {
   for (const [name, value] of Object.entries(variables)) {
     const valStr = String(value);
-    // Cores
     if (valStr.startsWith('#') || valStr.startsWith('rgb')) {
       layer.fills.push({
         type: 'SOLID',
@@ -347,41 +383,28 @@ function applyStylesFromVariables(layer, variables) {
         variableName: name.replace(/\//g, '-')
       });
     }
-    // Raios
-    if (name.toLowerCase().includes('radius')) {
-      layer.cornerRadius = parseFloat(valStr);
-    }
-    // Tipografia
+    if (name.toLowerCase().includes('radius')) layer.cornerRadius = parseFloat(valStr);
     if (valStr.includes('Font(')) {
-      const fontMatch = valStr.match(/family: "([^"]+)"/);
-      if (fontMatch) layer.fontFamily = fontMatch[1];
-      const sizeMatch = valStr.match(/size: ([\d.]+)/);
-      if (sizeMatch) layer.fontSize = parseFloat(sizeMatch[1]);
-      const weightMatch = valStr.match(/weight: ([\d.]+)/);
-      if (weightMatch) layer.fontWeight = parseFloat(weightMatch[1]);
+      const f = valStr.match(/family: "([^"]+)"/);
+      if (f) layer.fontFamily = f[1];
+      const s = valStr.match(/size: ([\d.]+)/);
+      if (s) layer.fontSize = parseFloat(s[1]);
     }
   }
 }
 
 function applyStylesFromContext(layer, context) {
-  // Parsing de gap e padding via Regex no código gerado pelo context
-  const gapMatch = context.match(/gap-\[var\([^,]+,([\d.]+)px\)\]|gap-([\d.]+)/);
-  if (gapMatch) layer.gap = parseFloat(gapMatch[1] || gapMatch[2]);
-
+  const gMatch = context.match(/gap-\[var\([^,]+,([\d.]+)px\)\]|gap-([\d.]+)/);
+  if (gMatch) layer.gap = parseFloat(gMatch[1] || gMatch[2]);
   const pMatch = context.match(/p[xy]-\[var\([^,]+,([\d.]+)px\)\]|p-([\d.]+)/);
   if (pMatch) layer.padding = parseFloat(pMatch[1] || pMatch[2]);
 }
 
-// ─── Start ──────────────────────────────────────────────────────────────────
-
 app.listen(PORT, async () => {
-  console.log(`\n🔌 DS Auditor Proxy Server running at http://localhost:${PORT}`);
-  console.log(`📡 Connecting to Figma MCP at ${MCP_URL}...\n`);
-  
+  console.log(`🔌 DS Auditor Proxy running at http://localhost:${PORT}`);
   try {
     await initMCPSession();
-    console.log(`✅ Figma MCP conectado com sucesso!`);
   } catch (err) {
-    console.warn(`⚠️  Figma MCP connection failed: ${err.message}`);
+    console.warn(`⚠️ MCP connection failed: ${err.message}`);
   }
 });

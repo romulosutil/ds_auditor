@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Layers, Palette, Baseline, ScanLine, Maximize, FileText, CheckCircle2, Search, AlertCircle } from 'lucide-react';
+import { Layers, Palette, Baseline, ScanLine, Maximize, FileText, CheckCircle2, Search, AlertCircle, Zap } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { checkProxyHealth } from '../services/figmaService';
 
@@ -57,16 +57,17 @@ export function Sidebar({ onStartAudit, isAuditing, url, setUrl }: SidebarProps)
           <div className="bg-[#18181B] p-2 rounded-lg">
             <ScanLine className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight">DS Auditor</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-[#18181B]">DS Auditor</h1>
+          <span className="text-[10px] font-bold bg-[#F4F4F5] text-[#71717A] px-1.5 py-0.5 rounded border border-[#E4E4E7]">v3.0</span>
         </div>
         
         <div className={cn(
-          "flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-full w-fit transition-colors",
+          "flex items-center gap-2 text-[11px] font-bold px-3 py-1.5 rounded-full w-fit transition-colors uppercase tracking-wider",
           isConnected 
-            ? "text-[#059669] bg-[#ECFDF5]" 
-            : "text-[#DC2626] bg-[#FEF2F2]"
+            ? "text-[#059669] bg-[#ECFDF5] border border-[#A7F3D0]" 
+            : "text-[#DC2626] bg-[#FEF2F2] border border-[#FECACA]"
         )}>
-          {isConnected ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+          {isConnected ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
           {isConnected ? "MCP Conectado" : "MCP Desconectado"}
         </div>
       </div>
@@ -76,7 +77,7 @@ export function Sidebar({ onStartAudit, isAuditing, url, setUrl }: SidebarProps)
         
         {/* URL Input */}
         <div className="space-y-3">
-          <label htmlFor="figma-url" className="block text-sm font-medium text-[#27272A]">
+          <label htmlFor="figma-url" className="block text-[11px] font-bold text-[#A1A1AA] uppercase tracking-widest">
             Figma URL ou Node ID
           </label>
           <div className="relative">
@@ -87,25 +88,24 @@ export function Sidebar({ onStartAudit, isAuditing, url, setUrl }: SidebarProps)
               onChange={(e) => setUrl(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAudit()}
               placeholder="Cole o link do frame..."
-              className="w-full pl-10 pr-4 py-2.5 bg-[#F4F4F5] border border-[#E4E4E7] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1]/20 focus:border-[#6366F1] transition-all placeholder:text-[#A1A1AA]"
+              className="w-full pl-10 pr-4 py-3 bg-[#F4F4F5] border border-[#E4E4E7] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1]/20 focus:border-[#6366F1] transition-all placeholder:text-[#A1A1AA]"
             />
             <Search className="w-4 h-4 text-[#A1A1AA] absolute left-3.5 top-1/2 -translate-y-1/2" />
           </div>
           
-          {/* Status do Frame (Mock) */}
           {url && !isAuditing && (
-             <div className="text-xs text-[#71717A] flex items-center justify-between px-1">
-                <span>Analisando Frame: <b>Header_v2</b></span>
-                <span>1440x680px</span>
+             <div className="text-[10px] text-[#71717A] flex items-center gap-1.5 px-1 font-medium bg-[#FAFAFA] p-2 rounded-lg border border-[#F4F4F5]">
+                <Zap className="w-3 h-3 text-[#EAB308]" />
+                <span>Pronto para análise v3.0</span>
              </div>
           )}
         </div>
 
         {/* Categories */}
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-[#27272A]">Filtros de Auditoria</h3>
-            <span className="text-xs text-[#A1A1AA]">{activeCategories.size}/{CATEGORIES.length}</span>
+            <h3 className="text-[11px] font-bold text-[#A1A1AA] uppercase tracking-widest">Filtros de Auditoria</h3>
+            <span className="text-[10px] font-bold text-[#6366F1] bg-[#6366F1]/10 px-2 py-0.5 rounded-full">{activeCategories.size}/{CATEGORIES.length}</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {CATEGORIES.map(({ id, label, icon: Icon }) => {
@@ -115,10 +115,10 @@ export function Sidebar({ onStartAudit, isAuditing, url, setUrl }: SidebarProps)
                   key={id}
                   onClick={() => toggleCategory(id)}
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border",
+                    "flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all border shadow-sm",
                     isActive 
-                      ? "bg-[#18181B] text-white border-[#18181B]" 
-                      : "bg-white text-[#71717A] border-[#E4E4E7] hover:bg-[#F4F4F5]"
+                      ? "bg-[#18181B] text-white border-[#18181B] scale-105" 
+                      : "bg-white text-[#71717A] border-[#E4E4E7] hover:border-[#D4D4D8] hover:bg-[#F4F4F5]"
                   )}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -130,25 +130,43 @@ export function Sidebar({ onStartAudit, isAuditing, url, setUrl }: SidebarProps)
         </div>
 
         {/* DS Context Info */}
-        <div className="space-y-3">
-           <h3 className="text-sm font-medium text-[#27272A]">Contexto do Design System</h3>
-           <div className="bg-[#F4F4F5] p-4 rounded-xl space-y-3 border border-[#E4E4E7]">
-              <div className="flex justify-between items-center">
-                 <span className="text-sm font-semibold text-[#18181B]">DS4FUN</span>
-                 <span className="text-xs font-medium text-[#6366F1] bg-[#EEF2FF] px-2 py-0.5 rounded">v2.4.0</span>
+        <div className="space-y-4">
+           <h3 className="text-[11px] font-bold text-[#A1A1AA] uppercase tracking-widest">Contexto do Design System</h3>
+           <div className="bg-[#18181B] p-5 rounded-2xl space-y-4 border border-[#27272A] shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-2 opacity-10">
+                <ScanLine className="w-16 h-16 text-white" />
               </div>
-              <div className="grid grid-cols-2 gap-2 text-xs text-[#71717A]">
+              <div className="flex justify-between items-center relative z-10">
                  <div className="flex flex-col">
-                    <span className="font-medium text-[#27272A]">786</span>
-                    Variáveis
+                    <span className="text-sm font-bold text-white tracking-tight">DS4FUN Library</span>
+                    <span className="text-[10px] text-[#A1A1AA] font-mono">v1.4.0 (Stable)</span>
+                 </div>
+                 <div className="w-3 h-3 rounded-full bg-[#10B981] shadow-[0_0_8px_#10B981]" title="Library Active" />
+              </div>
+
+              <div className="space-y-2 relative z-10">
+                 <div className="flex items-center justify-between text-[10px] font-bold text-[#71717A] uppercase tracking-tighter">
+                    <span>Tokens Status</span>
+                    <span>Load Success</span>
+                 </div>
+                 <div className="flex flex-wrap gap-1.5">
+                    {['Cores', 'Tipografia', 'Espaçamento'].map(token => (
+                      <div key={token} className="flex items-center gap-1 bg-white/5 border border-white/10 px-2 py-1 rounded text-[9px] text-[#A1A1AA] font-bold">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+                        {token}
+                      </div>
+                    ))}
+                 </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 text-xs relative z-10 pt-2 border-t border-white/5">
+                 <div className="flex flex-col">
+                    <span className="font-bold text-white text-base">786</span>
+                    <span className="text-[9px] text-[#71717A] uppercase font-bold tracking-widest">Variáveis</span>
                  </div>
                  <div className="flex flex-col">
-                    <span className="font-medium text-[#27272A]">42</span>
-                    Base Components
-                 </div>
-                 <div className="flex flex-col">
-                    <span className="font-medium text-[#27272A]">Light/Dark</span>
-                    Temas
+                    <span className="font-bold text-white text-base">42</span>
+                    <span className="text-[9px] text-[#71717A] uppercase font-bold tracking-widest">Components</span>
                  </div>
               </div>
            </div>
@@ -162,19 +180,19 @@ export function Sidebar({ onStartAudit, isAuditing, url, setUrl }: SidebarProps)
            onClick={handleAudit}
            disabled={isAuditing || !url.trim()}
            className={cn(
-            "w-full py-3 px-4 rounded-xl text-white font-medium text-sm transition-all flex items-center justify-center gap-2",
-            isAuditing || !url.trim() ? "bg-[#A1A1AA] cursor-not-allowed" : "bg-[#6366F1] hover:bg-[#4F46E5] shadow-sm hover:shadow"
+            "w-full py-4 px-4 rounded-2xl text-white font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg",
+            isAuditing || !url.trim() ? "bg-[#A1A1AA] cursor-not-allowed" : "bg-[#6366F1] hover:bg-[#4F46E5] hover:shadow-indigo-200 active:scale-95"
            )}
         >
           {isAuditing ? (
             <>
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Analisando Interface...
+              Executando Motor v3.0...
             </>
           ) : (
              <>
-               <ScanLine className="w-4 h-4" />
-               Iniciar Auditoria
+               <Zap className="w-4 h-4 fill-current" />
+               Auditar Design
              </>
           )}
         </button>

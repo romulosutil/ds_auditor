@@ -1,9 +1,10 @@
-import { useRef, useState, useEffect } from 'react';
-import { Download, HelpCircle, ShieldCheck, ExternalLink } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Download, HelpCircle, ShieldCheck } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { ScoreCards } from './ScoreCards';
 import { CategoryDetails } from './CategoryDetails';
-import type { AuditResults, AuditCategory } from '../services/auditEngine';
+import { cn } from '../lib/utils';
+import type { AuditResults, AuditCategory, AuditIssue } from '../services/auditEngine';
 
 const CATEGORY_LABELS: Record<AuditCategory, string> = {
   colors: 'Cores',
@@ -19,38 +20,34 @@ interface MainPanelProps {
   isAuditing: boolean;
   previewUrl: string | null;
   frameName: string | undefined;
+  fileName?: string | undefined;
+  progress: number;
+  status: string;
 }
 
-export function MainPanel({ results, isAuditing, previewUrl, frameName }: MainPanelProps) {
+export function MainPanel({ results, isAuditing, previewUrl, frameName, fileName, progress, status }: MainPanelProps) {
   const printRef = useRef<HTMLDivElement>(null);
-  const [loadingStep, setLoadingStep] = useState(0);
+  const [hoveredIssue, setHoveredIssue] = useState<AuditIssue | null>(null);
+  const [imageScale, setImageScale] = useState({ x: 1, y: 1 });
 
-  const steps = [
-    "Conectando ao Proxy...",
-    "Buscando frame no Figma...",
-    "Lendo estrutura de camadas...",
-    "Validando tokens DS4FUN...",
-    "Calculando scores de governança...",
-    "Gerando relatório final..."
-  ];
+  // Calcular escala da imagem para o Highlight v3.0
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    const displayedWidth = img.clientWidth;
+    const displayedHeight = img.clientHeight;
+    
+    // Pegamos a largura original do frame (assumindo a primeira categoria com erro ou 1440 padrão)
+    const originalWidth = results?.totalLayers ? (results?.categories.colors?.[0]?.width || 1440) : 1440;
+    const originalHeight = results?.totalLayers ? (results?.categories.colors?.[0]?.height || 1024) : 1024;
 
-  useEffect(() => {
-    let interval: number | undefined;
-    if (isAuditing) {
-      setLoadingStep(0);
-      interval = window.setInterval(() => {
-        setLoadingStep(prev => (prev < steps.length - 1 ? prev + 1 : prev));
-      }, 1500);
-    } else {
-      setLoadingStep(0);
-      if (interval) clearInterval(interval);
-    }
-    return () => { if (interval) clearInterval(interval); };
-  }, [isAuditing]);
+    setImageScale({
+      x: displayedWidth / originalWidth,
+      y: displayedHeight / originalHeight
+    });
+  };
 
   const handleDownloadPDF = () => {
     if (!printRef.current) return;
-    
     const element = printRef.current;
     const opt = {
       margin: 10,
@@ -59,24 +56,39 @@ export function MainPanel({ results, isAuditing, previewUrl, frameName }: MainPa
       html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
-
     html2pdf().set(opt).from(element).save();
   };
 
   if (isAuditing) {
     return (
       <main className="flex-1 flex items-center justify-center bg-white">
-         <div className="flex flex-col items-center gap-6 max-w-xs w-full">
-            <div className="w-12 h-12 border-4 border-[#F4F4F5] border-t-[#6366F1] rounded-full animate-spin shadow-inner" />
-            <div className="space-y-2 text-center w-full">
-               <p className="text-sm font-semibold text-[#18181B]">{steps[loadingStep]}</p>
-               <div className="w-full bg-[#F4F4F5] h-1.5 rounded-full overflow-hidden">
+         <div className="flex flex-col items-center gap-6 max-w-sm w-full p-8 text-center text-render">
+            <div className="relative w-24 h-24">
+               <svg className="w-full h-full" viewBox="0 0 100 100">
+                  <circle className="text-[#F4F4F5] stroke-[8]" stroke="currentColor" fill="transparent" r="40" cx="50" cy="50" />
+                  <circle 
+                    className="text-[#6366F1] stroke-[8] transition-all duration-500 ease-out" 
+                    strokeDasharray={2 * Math.PI * 40}
+                    strokeDashoffset={2 * Math.PI * 40 * (1 - progress / 100)}
+                    strokeLinecap="round"
+                    stroke="currentColor" 
+                    fill="transparent" 
+                    r="40" cx="50" cy="50" 
+                  />
+               </svg>
+               <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-[#6366F1]">
+                  {progress}%
+               </div>
+            </div>
+            <div className="space-y-3 w-full">
+               <h3 className="text-lg font-semibold text-[#18181B] animate-pulse">{status}</h3>
+               <div className="w-full bg-[#F4F4F5] h-2 rounded-full overflow-hidden shadow-inner">
                   <div 
-                    className="h-full bg-[#6366F1] transition-all duration-1000 ease-out" 
-                    style={{ width: `${((loadingStep + 1) / steps.length) * 100}%` }}
+                    className="h-full bg-[#6366F1] transition-all duration-500 ease-out" 
+                    style={{ width: `${progress}%` }}
                   />
                </div>
-               <p className="text-[10px] text-[#A1A1AA] uppercase tracking-widest font-bold">Auditoria em Curso</p>
+               <p className="text-[10px] text-[#A1A1AA] uppercase tracking-widest font-bold">Processando via Figma MCP SSE</p>
             </div>
          </div>
       </main>
@@ -90,8 +102,8 @@ export function MainPanel({ results, isAuditing, previewUrl, frameName }: MainPa
              <div className="w-12 h-12 bg-[#F4F4F5] rounded-xl flex items-center justify-center mb-4 mx-auto">
                  <HelpCircle className="w-6 h-6 text-[#A1A1AA]" />
              </div>
-             <h2 className="text-lg font-semibold text-[#18181B] mb-2">Nenhuma análise ativa</h2>
-             <p className="text-sm text-[#71717A]">Cole a URL de um frame do Figma na barra lateral para iniciar a auditoria de Design System.</p>
+             <h2 className="text-lg font-semibold text-[#18181B] mb-2">Aguardando Auditoria</h2>
+             <p className="text-sm text-[#71717A]">Cole a URL do Figma e selecione as categorias para iniciar o processo v3.0.</p>
           </div>
       </main>
     );
@@ -101,32 +113,32 @@ export function MainPanel({ results, isAuditing, previewUrl, frameName }: MainPa
 
   return (
     <main className="flex-1 overflow-y-auto bg-[#FAFAFA] relative">
-      {/* Top Bar */}
       <div className="sticky top-0 z-20 bg-[#FAFAFA]/80 backdrop-blur-md border-b border-[#E4E4E7] px-8 py-4 flex items-center justify-between no-print">
-         <div>
-            <h2 className="text-xl font-semibold tracking-tight">Análise da Interface</h2>
-            <div className="flex items-center gap-2 mt-1">
-               <div className="w-2 h-2 rounded-full bg-[#10B981]" />
-               <span className="text-xs font-medium text-[#71717A]">Análise concluída em {new Date(results.auditedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+         <div className="flex items-center gap-4">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-wider">Ficheiro Figma</span>
+              <h2 className="text-lg font-semibold tracking-tight text-[#18181B] leading-tight truncate max-w-[200px]" title={fileName}>
+                {fileName || 'Arquivo'}
+              </h2>
+            </div>
+            <div className="h-8 w-px bg-[#E4E4E7]" />
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-wider">Frame Analisado</span>
+              <div className="flex items-center gap-2">
+                 <div className="w-2 h-2 rounded-full bg-[#10B981]" />
+                 <h3 className="text-sm font-medium text-[#3F3F46] leading-tight truncate max-w-[150px]" title={frameName}>
+                   {frameName || 'Seleção'}
+                 </h3>
+              </div>
             </div>
          </div>
-         <button 
-           onClick={handleDownloadPDF}
-           className="flex items-center gap-2 px-4 py-2 bg-white border border-[#E4E4E7] rounded-xl text-sm font-medium text-[#3F3F46] hover:bg-[#F4F4F5] hover:text-[#18181B] transition-colors shadow-sm"
-         >
+         <button onClick={handleDownloadPDF} className="flex items-center gap-2 px-4 py-2 bg-white border border-[#E4E4E7] rounded-xl text-sm font-medium text-[#3F3F46] hover:bg-[#F4F4F5] shadow-sm">
             <Download className="w-4 h-4" />
-            Baixar PDF
+            PDF Relatório
          </button>
       </div>
 
-      {/* Printable Area Container */}
-      <div ref={printRef} className="p-8 max-w-5xl mx-auto space-y-8 bg-[#FAFAFA]">
-          {/* Header for PDF only */}
-          <div className="hidden print:block mb-8 pb-4 border-b border-[#E4E4E7]">
-              <h1 className="text-2xl font-bold tracking-tight mb-2">Relatório de Governança DS Auditor</h1>
-              <p className="text-sm text-[#71717A]">Frame analisado: {frameName ?? 'N/A'} | Data: {new Date(results.auditedAt).toLocaleDateString()}</p>
-          </div>
-
+      <div ref={printRef} className="p-8 max-w-6xl mx-auto space-y-8 bg-[#FAFAFA]">
           <ScoreCards 
              score={results.score} 
              compliance={results.compliance} 
@@ -134,71 +146,63 @@ export function MainPanel({ results, isAuditing, previewUrl, frameName }: MainPa
              alerts={results.alerts} 
           />
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-             {/* Left Column: Preview Map */}
-             <div className="lg:col-span-1 space-y-4">
-                 <h3 className="text-sm font-semibold text-[#27272A]">
-                    Visualização do Frame
-                 </h3>
-                 <div className="bg-[#E4E4E7] rounded-2xl aspect-[3/4] flex flex-col items-center justify-center border border-[#D4D4D8] overflow-hidden relative group">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+             <div className="space-y-4">
+                 <h3 className="text-sm font-semibold text-[#27272A]">Figma Preview (Highlight v3.0)</h3>
+                 <div className="bg-[#E4E4E7] rounded-2xl border border-[#D4D4D8] overflow-hidden relative group aspect-video lg:aspect-square xl:aspect-[4/3]">
                     {previewUrl ? (
-                        <>
+                        <div className="relative w-full h-full">
                           <img 
                             src={previewUrl}
                             alt="Figma Frame Preview" 
-                            className="object-cover w-full h-full opacity-60 grayscale group-hover:grayscale-0 transition-all duration-500"
+                            onLoad={handleImageLoad}
+                            className={cn(
+                               "object-contain w-full h-full transition-all duration-500",
+                               hoveredIssue ? "opacity-30 blur-[1px] grayscale" : "opacity-100"
+                            )}
                           />
-                          <a 
-                            href={previewUrl} 
-                            target="_blank" 
-                            rel="noreferrer"
-                            className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity no-print"
-                          >
-                            <div className="bg-white px-3 py-1.5 rounded-lg flex items-center gap-2 text-xs font-bold text-black shadow-lg">
-                              <ExternalLink className="w-3 h-3" />
-                              ABRIR IMAGEM ↗
+                          {hoveredIssue && hoveredIssue.width && hoveredIssue.height && (
+                            <div 
+                              className="absolute border-2 border-[#6366F1] bg-[#6366F1]/20 shadow-[0_0_15px_rgba(99,102,241,0.4)] z-30 transition-all duration-200"
+                              style={{
+                                left: `${(hoveredIssue.x || 0) * imageScale.x}px`,
+                                top: `${(hoveredIssue.y || 0) * imageScale.y}px`,
+                                width: `${hoveredIssue.width * imageScale.x}px`,
+                                height: `${hoveredIssue.height * imageScale.y}px`,
+                              }}
+                            >
+                               <div className="absolute top-0 right-0 translate-y-[-100%] bg-[#6366F1] text-white text-[8px] font-bold px-1 py-0.5 rounded-t">
+                                  {hoveredIssue.severity.toUpperCase()}
+                               </div>
                             </div>
-                          </a>
-                        </>
+                          )}
+                        </div>
                     ) : (
-                        <div className="p-6 text-center space-y-2">
-                           <div className="w-10 h-10 bg-[#D4D4D8] rounded-full flex items-center justify-center mx-auto">
-                              <ShieldCheck className="w-5 h-5 text-[#A1A1AA]" />
-                           </div>
-                           <p className="text-[10px] text-[#71717A] font-bold uppercase tracking-tighter italic">Preview bloqueado por CORS (S3)</p>
+                        <div className="p-6 text-center space-y-2 flex flex-col items-center justify-center h-full">
+                           <ShieldCheck className="w-8 h-8 text-[#A1A1AA]" />
+                           <p className="text-[10px] text-[#71717A] max-w-[150px]">Preview indisponível. Verifique conexão com MCP.</p>
                         </div>
                     )}
                  </div>
                  
-                 {/* Internal Summary Sidebar */}
-                 <div className="bg-white p-4 rounded-xl border border-[#E4E4E7] shadow-sm">
-                    <h4 className="text-xs font-semibold text-[#71717A] mb-3 uppercase tracking-wider">Resumo da Auditoria</h4>
-                    <div className="space-y-2">
-                       <div className="flex justify-between items-center text-sm">
-                          <span className="text-[#3F3F46]">Total de Camadas</span>
-                          <span className="font-semibold text-[#27272A]">{results.totalLayers}</span>
+                 <div className="bg-white p-4 rounded-xl border border-[#E4E4E7] shadow-sm flex items-center justify-between">
+                    <div>
+                       <h4 className="text-[10px] font-bold text-[#A1A1AA] mb-1 uppercase tracking-wider">Métricas</h4>
+                       <div className="flex gap-4">
+                          <div className="text-sm"><span className="text-[#71717A]">Camadas:</span> <span className="font-bold">{results.totalLayers}</span></div>
+                          <div className="text-sm"><span className="text-[#71717A]">Analizado:</span> <span className="font-bold">{new Date(results.auditedAt).toLocaleTimeString()}</span></div>
                        </div>
-                       <div className="flex justify-between items-center text-sm">
-                          <span className="text-[#3F3F46]">Erros Críticos</span>
-                          <span className="font-semibold text-[#DC2626]">{results.criticalErrors}</span>
-                       </div>
-                       <div className="flex justify-between items-center text-sm">
-                          <span className="text-[#3F3F46]">Alertas</span>
-                          <span className="font-semibold text-[#D97706]">{results.alerts}</span>
-                       </div>
-                       <div className="pt-2 mt-2 border-t border-[#E4E4E7] flex justify-between items-center text-sm font-medium">
-                          <span className="text-[#18181B]">Total Issues</span>
-                          <span className="text-[#18181B]">{results.criticalErrors + results.alerts}</span>
-                       </div>
+                    </div>
+                    <div className="text-right">
+                       <h4 className="text-[10px] font-bold text-[#A1A1AA] mb-1 uppercase tracking-wider">Compliance</h4>
+                       <div className="text-2xl font-bold text-[#10B981]">{results.compliance}%</div>
                     </div>
                  </div>
              </div>
 
-             {/* Right Column: Detailed Issues */}
-             <div className="lg:col-span-2 space-y-6">
-                <div>
-                   <h3 className="text-lg font-semibold tracking-tight text-[#18181B] mb-4">Detalhamento por Categoria</h3>
-                   
+             <div className="space-y-6">
+                 <h3 className="text-lg font-semibold tracking-tight text-[#18181B] mb-4">Inspeção Detalhada</h3>
+                 <div className="space-y-4">
                    {categoryEntries.map(([catId, issues]) =>
                        issues && issues.length > 0 ? (
                          <CategoryDetails 
@@ -206,25 +210,11 @@ export function MainPanel({ results, isAuditing, previewUrl, frameName }: MainPa
                            title={CATEGORY_LABELS[catId]} 
                            type={issues.some(i => i.severity === 'error') ? 'error' : 'warning'} 
                            issues={issues} 
+                           onHoverIssue={setHoveredIssue}
                          />
                        ) : null
                    )}
-                   
-                   {/* Passed Categories */}
-                   {results.passedCategories.length > 0 && (
-                     <div className="bg-[#ECFDF5] border border-[#10B981]/20 rounded-xl p-4 flex items-start gap-3 mt-4">
-                         <div className="bg-white p-1 rounded-full shadow-sm mt-0.5 shrink-0">
-                             <ShieldCheck className="w-4 h-4 text-[#10B981]" />
-                         </div>
-                         <div>
-                            <h4 className="text-sm font-semibold text-[#065F46] mb-1">
-                              {results.passedCategories.map(c => CATEGORY_LABELS[c]).join(', ')} — 100% aderentes
-                            </h4>
-                            <p className="text-xs text-[#065F46]/80">Nenhuma infração encontrada para as categorias selecionadas acima.</p>
-                         </div>
-                     </div>
-                   )}
-                </div>
+                 </div>
              </div>
           </div>
       </div>
