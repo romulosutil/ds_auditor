@@ -1,0 +1,1810 @@
+/* =========================================================
+   DS4Fun Design System - Library
+   Versão: 1.4.0 (Adição Radio & Melhorias A11y)
+========================================================= */
+
+:root {
+    /* =========================================================
+     1. PRIMITIVAS (Paleta Global)
+  ========================================================= */
+
+    /* --- Orange --- */
+    --color-orange-100: #FEEFCD;
+    --color-orange-200: #FDDA9C;
+    --color-orange-300: #F9BE6A;
+    --color-orange-400: #F3A244;
+    --color-orange-500: #EC780A;
+    --color-orange-600: #CA5C07;
+    --color-orange-700: #A94405;
+    --color-orange-800: #882F03;
+    --color-orange-900: #712101;
+
+    /* --- Purple --- */
+    --color-purple-100: #F3D4F8;
+    --color-purple-200: #E4ABF2;
+    --color-purple-300: #C07AD8;
+    --color-purple-400: #9451B2;
+    --color-purple-500: #5D2380;
+    --color-purple-600: #49196E;
+    --color-purple-700: #37115C;
+    --color-purple-800: #270B4A;
+    --color-purple-900: #1B063D;
+
+    /* --- Neutral --- */
+    --color-neutral-100: #FBFCFE;
+    --color-neutral-200: #F7FAFD;
+    --color-neutral-300: #F1F5F9;
+    --color-neutral-400: #E9EFF4;
+    --color-neutral-500: #E0E6EE;
+    --color-neutral-600: #A3B3CC;
+    --color-neutral-700: #7084AB;
+    --color-neutral-800: #475B8A;
+    --color-neutral-900: #2B3D72;
+    --color-neutral-white: #FFFFFF;
+    --color-neutral-black: #000000;
+
+    /* --- Error --- */
+    --color-error-100: #FFE6D8;
+    --color-error-200: #FFC7B1;
+    --color-error-300: #FFA18A;
+    --color-error-400: #FF7E6D;
+    --color-error-500: #FF433D;
+    --color-error-600: #DB2C36;
+    --color-error-700: #B71E33;
+    --color-error-800: #931330;
+    --color-error-900: #7A0B2D;
+
+    /* --- Success --- */
+    --color-success-100: #EDFCD4;
+    --color-success-200: #D7FAA9;
+    --color-success-300: #B7F17C;
+    --color-success-400: #96E35A;
+    --color-success-500: #69D129;
+    --color-success-600: #4DB31D;
+    --color-success-700: #369614;
+    --color-success-800: #22790D;
+    --color-success-900: #146407;
+
+    /* --- Warning --- */
+    --color-warning-100: #FFF4CC;
+    --color-warning-200: #FFE799;
+    --color-warning-300: #FFD666;
+    --color-warning-400: #FFC53F;
+    --color-warning-500: #FFAA00;
+    --color-warning-600: #DB8A00;
+    --color-warning-700: #B76D00;
+    --color-warning-800: #935300;
+    --color-warning-900: #7A4000;
+
+    /* --- Info --- */
+    --color-info-100: #CFEAFE;
+    --color-info-200: #A0D1FE;
+    --color-info-300: #71B5FE;
+    --color-info-400: #4E9BFD;
+    --color-info-500: #1471FC;
+    --color-info-600: #0E57D8;
+    --color-info-700: #0A40B5;
+    --color-info-800: #062D92;
+    --color-info-900: #031F78;
+
+
+    /* =========================================================
+     2. VARIÁVEIS SEMÂNTICAS (Light Theme)
+  ========================================================= */
+
+    /* Surface */
+    --surface-canvas: var(--color-neutral-500);
+    --surface-base: var(--color-neutral-200);
+    --surface-raised: var(--color-neutral-white);
+    --surface-overlay: rgba(0, 0, 0, 0.6);
+
+    /* Text */
+    --text-primary: var(--color-neutral-900);
+    --text-secondary: var(--color-neutral-800);
+    --text-placeholder: var(--color-neutral-600);
+    --text-link: var(--color-info-600);
+    --text-link-hover: var(--color-info-700);
+    --text-on-interactive: var(--color-neutral-white);
+
+    /* Icon */
+    --icon-primary: var(--color-neutral-800);
+    --icon-secondary: var(--color-neutral-600);
+    --icon-on-interactive: var(--color-neutral-white);
+
+    /* Border Radius */
+    --radius-interactive: 8px;
+    --radius-container: 16px;
+    --radius-pill: 9999px;
+
+    /* Border & Divider */
+    --border-subtle: var(--color-neutral-400);
+    --divider-default: var(--color-neutral-400);
+
+    /* Focus */
+    --focus-ring: var(--color-info-500);
+
+    /* Interactive: Primary */
+    --interactive-primary-default: var(--color-orange-600);
+    --interactive-primary-hover: var(--color-orange-700);
+    --interactive-primary-active: var(--color-orange-800);
+    --interactive-primary-focus: var(--color-orange-600);
+
+    /* Interactive: Secondary */
+    --interactive-secondary-default: var(--color-purple-500);
+    --interactive-secondary-hover: var(--color-purple-600);
+    --interactive-secondary-active: var(--color-purple-700);
+    --interactive-secondary-focus: var(--color-purple-500);
+
+    /* Interactive: Tertiary */
+    --interactive-tertiary-default: var(--color-neutral-300);
+    --interactive-tertiary-hover: var(--color-neutral-400);
+    --interactive-tertiary-active: var(--color-neutral-500);
+    --interactive-tertiary-focus: var(--color-neutral-300);
+
+    /* Interactive: Destructive */
+    --interactive-destructive-default: var(--color-error-700);
+    --interactive-destructive-hover: var(--color-error-800);
+    --interactive-destructive-active: var(--color-error-900);
+    --interactive-destructive-focus: var(--color-error-700);
+
+    /* Interactive: Disabled */
+    --interactive-disabled-bg: var(--color-neutral-300);
+    --interactive-disabled-text: var(--color-neutral-600);
+
+    /* Interactive: Surface States */
+    --interactive-surface-hover: var(--color-neutral-300);
+    --interactive-surface-active: var(--color-info-200);
+    --interactive-surface-focus: var(--color-info-100);
+
+    /* Input */
+    --input-bg-default: var(--color-neutral-white);
+    --input-border-default: var(--color-neutral-500);
+    --input-border-hover: var(--color-neutral-600);
+    --input-border-focus: var(--color-info-500);
+
+    /* Checkbox Specifics */
+    --checkbox-bg-unchecked: var(--color-neutral-500);
+    --checkbox-bg-unchecked-hover: var(--color-neutral-600);
+    --checkbox-bg-checked: var(--color-orange-600);
+    --checkbox-border-focus: var(--color-info-500);
+
+    /* Radio Specifics */
+    --radio-border-unchecked: var(--color-neutral-800);
+    /* Mapeado de #475B8A */
+    --radio-border-checked: var(--color-neutral-800);
+    --radio-fill-checked: var(--color-neutral-800);
+    --radio-focus-ring: var(--color-info-500);
+    /* Mapeado de #1471FC */
+
+    /* Status */
+    --status-success-bg: #EDFCD4;
+    --status-success-text: #369614;
+    --status-warning-bg: #FFF4CC;
+    --status-warning-text: #B76D00;
+    --status-info-bg: #CFEAFE;
+    --status-info-text: #0A40B5;
+    --status-error-bg: #FFE6D8;
+    --status-error-text: #B71E33;
+
+    /* Shadows */
+    --color-shadow-base: 43, 61, 114;
+    --elevation-sm: 0px 1px 2px 0px rgba(var(--color-shadow-base), 0.05), 0px 1px 3px 0px rgba(var(--color-shadow-base), 0.10);
+    --elevation-md: 0px 4px 6px -1px rgba(var(--color-shadow-base), 0.10), 0px 2px 4px -1px rgba(var(--color-shadow-base), 0.06);
+    --elevation-lg: 0px 10px 15px -3px rgba(var(--color-shadow-base), 0.10), 0px 10px 10px -5px rgba(var(--color-shadow-base), 0.04);
+    --elevation-xl: 0px 8px 10px -6px rgba(var(--color-shadow-base), 0.1), 0px 20px 25px -5px rgba(var(--color-shadow-base), 0.1);
+
+    /* Typography Families */
+    --font-family-montserrat: 'Montserrat', sans-serif;
+    --font-family-inter: 'Inter', sans-serif;
+}
+
+/* =========================================================
+   3. DARK MODE OVERRIDES
+========================================================= */
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --surface-canvas: var(--color-neutral-900);
+        --surface-base: var(--color-neutral-900);
+        --surface-raised: var(--color-neutral-800);
+        --surface-overlay: rgba(0, 0, 0, 0.4);
+
+        --text-primary: var(--color-neutral-100);
+        --text-secondary: var(--color-neutral-400);
+        --text-placeholder: var(--color-neutral-500);
+        --text-link: var(--color-info-300);
+        --text-link-hover: var(--color-info-200);
+        --text-on-interactive: var(--color-neutral-white);
+
+        --icon-primary: var(--color-neutral-100);
+        --icon-secondary: var(--color-neutral-400);
+        --icon-on-interactive: var(--color-neutral-white);
+
+        --border-subtle: var(--color-neutral-700);
+        --divider-default: var(--color-neutral-700);
+
+        --focus-ring: var(--color-info-400);
+
+        --interactive-primary-default: var(--color-orange-500);
+        --interactive-primary-hover: var(--color-orange-400);
+        --interactive-primary-active: var(--color-orange-600);
+        --interactive-primary-focus: var(--color-orange-500);
+
+        --interactive-secondary-default: var(--color-purple-400);
+        --interactive-secondary-hover: var(--color-purple-300);
+        --interactive-secondary-active: var(--color-purple-500);
+        --interactive-secondary-focus: var(--color-purple-400);
+
+        --interactive-tertiary-default: rgba(255, 255, 255, 0.05);
+        --interactive-tertiary-hover: rgba(255, 255, 255, 0.1);
+        --interactive-tertiary-active: rgba(255, 255, 255, 0.15);
+        --interactive-tertiary-focus: rgba(255, 255, 255, 0.05);
+
+        --interactive-destructive-default: var(--color-error-500);
+        --interactive-destructive-hover: var(--color-error-400);
+        --interactive-destructive-active: var(--color-error-600);
+        --interactive-destructive-focus: var(--color-error-500);
+
+        --interactive-surface-hover: var(--color-neutral-700);
+        --interactive-surface-active: var(--color-neutral-600);
+        --interactive-surface-focus: var(--color-neutral-600);
+
+        --interactive-disabled-bg: rgba(255, 255, 255, 0.12);
+        --interactive-disabled-text: rgba(255, 255, 255, 0.38);
+
+        --input-bg-default: var(--color-neutral-900);
+        --input-border-default: var(--color-neutral-600);
+        --input-border-focus: var(--color-info-400);
+
+        --checkbox-bg-unchecked: rgba(255, 255, 255, 0.1);
+        --checkbox-bg-unchecked-hover: rgba(255, 255, 255, 0.2);
+        --checkbox-bg-checked: var(--color-orange-500);
+        --checkbox-border-focus: var(--color-info-400);
+
+        /* Radio Dark Mode */
+        --radio-border-unchecked: var(--color-neutral-400);
+        --radio-border-checked: var(--color-neutral-100);
+        --radio-fill-checked: var(--color-neutral-100);
+        --radio-focus-ring: var(--color-info-400);
+
+        --color-shadow-base: 0, 0, 0;
+    }
+}
+
+[data-theme="dark"] {
+    --surface-canvas: var(--color-neutral-900);
+    --surface-base: var(--color-neutral-900);
+    --surface-raised: var(--color-neutral-800);
+    --surface-overlay: rgba(0, 0, 0, 0.4);
+    --text-primary: var(--color-neutral-100);
+    --text-secondary: var(--color-neutral-400);
+    --text-placeholder: var(--color-neutral-500);
+    --text-link: var(--color-info-300);
+    --text-link-hover: var(--color-info-200);
+    --text-on-interactive: var(--color-neutral-white);
+    --icon-primary: var(--color-neutral-100);
+    --icon-secondary: var(--color-neutral-400);
+    --icon-on-interactive: var(--color-neutral-white);
+    --border-subtle: var(--color-neutral-700);
+    --divider-default: var(--color-neutral-700);
+    --focus-ring: var(--color-info-400);
+    --interactive-primary-default: var(--color-orange-500);
+    --interactive-primary-hover: var(--color-orange-400);
+    --interactive-primary-active: var(--color-orange-600);
+    --interactive-primary-focus: var(--color-orange-500);
+    --interactive-secondary-default: var(--color-purple-400);
+    --interactive-secondary-hover: var(--color-purple-300);
+    --interactive-secondary-active: var(--color-purple-500);
+    --interactive-secondary-focus: var(--color-purple-400);
+    --interactive-tertiary-default: rgba(255, 255, 255, 0.05);
+    --interactive-tertiary-hover: rgba(255, 255, 255, 0.1);
+    --interactive-tertiary-active: rgba(255, 255, 255, 0.15);
+    --interactive-tertiary-focus: rgba(255, 255, 255, 0.05);
+    --interactive-destructive-default: var(--color-error-500);
+    --interactive-destructive-hover: var(--color-error-400);
+    --interactive-destructive-active: var(--color-error-600);
+    --interactive-destructive-focus: var(--color-error-500);
+    --interactive-surface-hover: var(--color-neutral-700);
+    --interactive-surface-active: var(--color-neutral-600);
+    --interactive-surface-focus: var(--color-neutral-600);
+    --interactive-disabled-bg: rgba(255, 255, 255, 0.12);
+    --interactive-disabled-text: rgba(255, 255, 255, 0.38);
+    --input-bg-default: var(--color-neutral-900);
+    --input-border-default: var(--color-neutral-600);
+    --input-border-focus: var(--color-info-400);
+    --checkbox-bg-unchecked: rgba(255, 255, 255, 0.1);
+    --checkbox-bg-unchecked-hover: rgba(255, 255, 255, 0.2);
+    --checkbox-bg-checked: var(--color-orange-500);
+    --checkbox-border-focus: var(--color-info-400);
+    /* Radio Dark Mode via Class */
+    --radio-border-unchecked: var(--color-neutral-400);
+    --radio-border-checked: var(--color-neutral-100);
+    --radio-fill-checked: var(--color-neutral-100);
+    --radio-focus-ring: var(--color-info-400);
+    --color-shadow-base: 0, 0, 0;
+}
+
+/* =========================================================
+   4. TIPOGRAFIA & UTILITÁRIOS
+========================================================= */
+
+:root {
+    --font-family-montserrat: 'Montserrat', sans-serif;
+    --font-family-inter: 'Inter', sans-serif;
+}
+
+.bg-surface-base {
+    background-color: var(--surface-base);
+}
+
+.bg-surface-raised {
+    background-color: var(--surface-raised);
+}
+
+.text-primary {
+    color: var(--text-primary);
+}
+
+.text-secondary {
+    color: var(--text-secondary);
+}
+
+.shadow-md {
+    box-shadow: var(--elevation-md);
+}
+
+/* Focus Utility (Acessibilidade) */
+:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+/* =========================================================
+   5. COMPONENT: BUTTON (.btn)
+========================================================= */
+
+/* =========================================================
+   5. COMPONENT: BUTTON (.btn)
+========================================================= */
+
+.btn {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+    border-radius: var(--radius-interactive);
+    font-family: var(--font-family-inter);
+    font-style: normal;
+    transition: all 0.2s ease-in-out;
+    text-decoration: none;
+    position: relative;
+    white-space: nowrap;
+    outline: none;
+    user-select: none;
+}
+
+/* --- Sizes & Typography --- */
+
+/* Small (Height: 32px in Figma? Let's check. Original was 35px. Figma says 32px for SM?) 
+   Wait, Figma output says:
+   SM: padding: 8px 16px; gap: 12px; height is not explicitly fixed but padding + line-height implies it.
+   Let's stick to the visual height if possible or use padding to define it.
+   Figma: Frame 38:1130 -> Auto Layout. 
+   Padding: Vertical 8px, Horizontal 16px.
+   Gap: 12px.
+   Text: 12.8px / 1.5 (19.2px). 
+   Icon: 16px.
+   Total Height = 8px + 8px + max(19.2, 16) = 35.2px ~ 35px.
+*/
+.btn-sm {
+    padding: 8px 16px;
+    gap: 12px;
+    font-size: 12.8px;
+    font-weight: 500;
+    line-height: 1.5;
+}
+
+.btn-sm .material-symbols-outlined {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+/* Medium 
+   Figma: Frame 38:842 -> Auto Layout.
+   Padding: Vertical 8px, Horizontal 16px.
+   Gap: 8px.
+   Text: 16px / 1.5 (24px).
+   Icon: 24px.
+   Total Height = 8px + 8px + 24px = 40px.
+*/
+.btn-md {
+    padding: 8px 16px;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 800;
+    /* Extra Bold */
+    line-height: 1.5;
+}
+
+.btn-md .material-symbols-outlined {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+}
+
+/* Large 
+   Figma: Frame 38:1178 -> Auto Layout.
+   Padding: Vertical 8px, Horizontal 16px.
+   Gap: 16px.
+   Text: 18px / 1.5 (27px).
+   Icon: 24px.
+   Total Height = 8px + 8px + 27px = 43px.
+*/
+.btn-lg {
+    padding: 8px 16px;
+    gap: 16px;
+    font-size: 18px;
+    font-weight: 800;
+    /* Extra Bold */
+    line-height: 1.5;
+}
+
+.btn-lg .material-symbols-outlined {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+}
+
+
+/* --- Variants & States --- */
+
+/* Shared Focus Style */
+.btn:focus-visible,
+.btn.focus {
+    box-shadow: inset 0 0 0 2px var(--focus-ring);
+    z-index: 1;
+}
+
+/* 1. Primary */
+.btn-primary {
+    background-color: var(--interactive-primary-default);
+    color: var(--text-on-interactive);
+}
+
+.btn-primary:hover,
+.btn-primary.hover {
+    background-color: var(--interactive-primary-hover);
+    box-shadow: 0px 2px 4px 0px rgba(43, 61, 114, 0.06), 0px 4px 6px 0px rgba(43, 61, 114, 0.1);
+}
+
+.btn-primary:active,
+.btn-primary.active {
+    background-color: var(--interactive-primary-active);
+    box-shadow: none;
+}
+
+.btn-primary:focus-visible,
+.btn-primary.focus {
+    background-color: var(--interactive-primary-default);
+}
+
+/* 2. Secondary */
+.btn-secondary {
+    background-color: var(--interactive-secondary-default);
+    color: var(--text-on-interactive);
+}
+
+.btn-secondary:hover,
+.btn-secondary.hover {
+    background-color: var(--interactive-secondary-hover);
+    box-shadow: 0px 2px 4px 0px rgba(43, 61, 114, 0.06), 0px 4px 6px 0px rgba(43, 61, 114, 0.1);
+}
+
+.btn-secondary:active,
+.btn-secondary.active {
+    background-color: var(--interactive-secondary-active);
+    box-shadow: none;
+}
+
+.btn-secondary:focus-visible,
+.btn-secondary.focus {
+    background-color: var(--interactive-secondary-default);
+}
+
+/* 3. Tertiary */
+.btn-tertiary {
+    background-color: var(--interactive-tertiary-default);
+    color: var(--text-primary);
+    /* Dark Blue in Light mode, White in Dark mode */
+}
+
+.btn-tertiary:hover,
+.btn-tertiary.hover {
+    background-color: var(--interactive-tertiary-hover);
+    box-shadow: 0px 2px 4px 0px rgba(43, 61, 114, 0.06), 0px 4px 6px 0px rgba(43, 61, 114, 0.1);
+}
+
+.btn-tertiary:active,
+.btn-tertiary.active {
+    background-color: var(--interactive-tertiary-active);
+    box-shadow: none;
+}
+
+.btn-tertiary:focus-visible,
+.btn-tertiary.focus {
+    background-color: var(--interactive-tertiary-default);
+}
+
+/* 4. Destructive */
+.btn-destructive {
+    background-color: var(--interactive-destructive-default);
+    color: var(--text-on-interactive);
+}
+
+.btn-destructive:hover,
+.btn-destructive.hover {
+    background-color: var(--interactive-destructive-hover);
+    box-shadow: 0px 2px 4px 0px rgba(43, 61, 114, 0.06), 0px 4px 6px 0px rgba(43, 61, 114, 0.1);
+}
+
+.btn-destructive:active,
+.btn-destructive.active {
+    background-color: var(--interactive-destructive-active);
+    box-shadow: none;
+}
+
+.btn-destructive:focus-visible,
+.btn-destructive.focus {
+    background-color: var(--interactive-destructive-default);
+}
+
+
+/* --- Disabled State --- */
+.btn:disabled,
+.btn.disabled {
+    background-color: var(--interactive-disabled-bg) !important;
+    color: var(--interactive-disabled-text) !important;
+    box-shadow: none !important;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Ensure icons inherit the disabled color */
+.btn:disabled .material-symbols-outlined,
+.btn.disabled .material-symbols-outlined {
+    color: inherit;
+}
+
+
+/* --- Icon Only Variant --- */
+.btn-icon-only {
+    padding: 8px 16px !important;
+    justify-content: center;
+    gap: 0;
+}
+
+.btn-icon-only span:not(.material-symbols-outlined) {
+    display: none;
+}
+
+.btn-icon-only .material-symbols-outlined {
+    margin: 0;
+}
+
+
+
+/* =========================================================
+   6. COMPONENT: INPUT (.input-group)
+========================================================= */
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    font-family: var(--font-family-inter);
+    width: 100%;
+    /* Removed max-width: 320px to allow fluid desktop-first layout */
+}
+
+/* ... (lines 623-959 unchanged conceptually, but need to locate dropdown-group to edit it too) ... */
+/* Wait, I should do this in chunks or use multiple tool calls/chunks if they are far apart. 
+   Input group is ~line 614. Dropdown group is ~line 960. Modal is ~1790.
+   I will use multiple chunks for cleanliness.
+*/
+
+.input-label-wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.input-label {
+    font-weight: 500;
+    font-size: 12px;
+    line-height: 140%;
+    color: var(--text-secondary);
+    word-break: break-word;
+    /* Handle long words */
+    overflow-wrap: anywhere;
+}
+
+.input-required {
+    color: var(--status-error-text);
+    font-weight: 500;
+    font-size: 12.8px;
+}
+
+.input-optional {
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-size: 12px;
+}
+
+.input-field-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    height: var(--input-height);
+    padding: var(--input-padding-v) var(--input-padding-h);
+    background: var(--input-bg-default);
+    border: 1px solid var(--input-border-default);
+    border-radius: var(--radius-interactive);
+    transition: all 0.2s ease-in-out;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.form-input {
+    flex-grow: 1;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent;
+    appearance: none !important;
+    font-family: var(--font-family-inter);
+    font-weight: 500;
+    color: var(--text-primary);
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.form-input::placeholder {
+    color: var(--text-placeholder);
+    opacity: 1;
+}
+
+.input-icon {
+    font-size: var(--input-icon-size);
+    width: var(--input-icon-size);
+    height: var(--input-icon-size);
+    color: var(--text-placeholder);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+}
+
+.input-icon .material-symbols-outlined {
+    font-size: inherit;
+    width: inherit;
+    height: inherit;
+}
+
+.input-helper-wrapper {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+    gap: 16px;
+}
+
+.input-helper-text,
+.input-counter {
+    font-weight: 500;
+    font-size: 12px;
+    line-height: 140%;
+    color: var(--text-secondary);
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+/* Sizes */
+.input-group.input-sm {
+    --input-height: 35px;
+    /* Visual height */
+    --input-padding-v: 8px;
+    --input-padding-h: 16px;
+    --input-gap: 12px;
+    --input-font-size: 12.8px;
+    --input-icon-size: 16px;
+    --label-font-size: 12px;
+}
+
+.input-group.input-md {
+    --input-height: 56px;
+    --input-padding-v: 16px;
+    --input-padding-h: 16px;
+    --input-gap: 8px;
+    --input-font-size: 16px;
+    --input-icon-size: 24px;
+    --label-font-size: 12.8px;
+}
+
+.input-group.input-lg {
+    --input-height: 72px;
+    /* Figma might say 48 or 43 depending on padding, usually 48 for LG inputs */
+    --input-padding-v: 24px;
+    --input-padding-h: 24px;
+    --input-gap: 16px;
+    /* Checking Figma again for LG gap... assuming 16px based on extraction */
+    --input-font-size: 16px;
+    --input-icon-size: 24px;
+    --label-font-size: 12.8px;
+}
+
+.input-group .form-input {
+    font-size: var(--input-font-size);
+    padding: 8px 0;
+}
+
+.input-group .input-label {
+    font-size: var(--label-font-size);
+}
+
+/* States */
+/* States */
+/* Hover */
+.input-field-container:hover {
+    border-color: var(--input-border-hover, #a3b3cc);
+}
+
+/* Focus */
+/* Focus (Specifictiy increased to override Error state) */
+.input-group .input-field-container:focus-within,
+.input-group.focus .input-field-container {
+    border-color: var(--input-border-focus, #1471fc);
+    box-shadow: 0 0 0 1px var(--focus-ring);
+    z-index: 2;
+}
+
+/* Error */
+.input-group.input-error .input-field-container {
+    border-color: var(--status-error-text);
+    box-shadow: 0 0 0 1px var(--status-error-text);
+}
+
+/* Only Helper Text should be red in Error state, Label/Counter remain neutral */
+.input-group.input-error .input-helper-text {
+    color: var(--status-error-text);
+}
+
+/* Success */
+.input-group.input-success .input-field-container {
+    border-color: var(--status-success-text);
+    box-shadow: 0 0 0 1px var(--status-success-text);
+}
+
+/* Success - Only Helper Text & Icon should be colored */
+/* Success - Only Helper Text should be colored, Icon remains secondary */
+.input-group.input-success .input-helper-text {
+    color: var(--status-success-text);
+}
+
+.input-group.input-success .input-icon {
+    color: var(--icon-secondary, #7084ab);
+}
+
+/* Info */
+.input-group.input-info .input-field-container {
+    border-color: var(--status-info-text);
+    box-shadow: 0 0 0 1px var(--status-info-text);
+}
+
+/* Info - Only Helper Text & Icon should be colored */
+/* Info - Only Helper Text should be colored, Icon remains secondary */
+.input-group.input-info .input-helper-text {
+    color: var(--status-info-text);
+}
+
+.input-group.input-info .input-icon {
+    color: var(--icon-secondary, #7084ab);
+}
+
+/* Disabled - Handled by .input-disabled class applied to wrapper */
+.input-group.input-disabled .input-field-container {
+    background-color: var(--interactive-disabled-bg);
+    border-color: var(--interactive-disabled-text);
+    pointer-events: none;
+}
+
+.input-group.input-disabled .input-label,
+.input-group.input-disabled .input-helper-text,
+.input-group.input-disabled .input-counter,
+.input-group.input-disabled .form-input,
+.input-group.input-disabled .input-icon,
+.input-group.input-disabled .input-optional,
+.input-group.input-disabled .input-required {
+    color: var(--interactive-disabled-text);
+    -webkit-text-fill-color: var(--interactive-disabled-text);
+    background-color: transparent;
+}
+
+/* Success */
+
+
+/* =========================================================
+/* =========================================================
+/* =========================================================
+   7. COMPONENT: CHECKBOX (.checkbox)
+========================================================= */
+
+.checkbox-container {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    font-family: var(--font-family-inter);
+    color: var(--text-primary);
+    gap: 8px;
+    /* Fixed gap */
+    user-select: none;
+}
+
+.checkbox-input {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--input-border-default);
+    /* 2px Default Border */
+    /* 2px Default Border */
+    background-color: transparent;
+    /* Default BG */
+    border-radius: 4px;
+    /* Radius Interactive */
+    cursor: pointer;
+    position: relative;
+    display: grid;
+    place-content: center;
+    transition: all 0.2s ease-in-out;
+    box-sizing: border-box;
+}
+
+.checkbox-container:hover .checkbox-input {
+    background-color: transparent;
+    border-color: var(--input-border-hover);
+}
+
+/* Checked State: Outlined (Border + Icon) */
+.checkbox-input:checked {
+    background-color: transparent;
+    /* Keep White/Transparent */
+    border: 2px solid var(--interactive-primary-default);
+    /* Thick Primary Border */
+}
+
+/* Checked + Hover State */
+.checkbox-container:hover .checkbox-input:checked {
+    border-color: var(--interactive-primary-hover);
+}
+
+/* Checkmark Icon */
+.checkbox-input:checked::before {
+    content: "";
+    width: 14px;
+    height: 14px;
+    background-color: var(--interactive-primary-default);
+    /* Primary Color Checkmark */
+    transform-origin: center;
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+    transform: scale(1);
+    transition: 120ms transform ease-in-out;
+}
+
+/* Checked + Hover Icon */
+.checkbox-container:hover .checkbox-input:checked::before {
+    background-color: var(--interactive-primary-hover);
+}
+
+/* Focus State: Outer Ring */
+.checkbox-input:focus-visible,
+.checkbox-container.focus .checkbox-input {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--surface-canvas), 0 0 0 4px var(--focus-ring);
+    z-index: 1;
+}
+
+.checkbox-container.disabled {
+    cursor: not-allowed;
+    opacity: 1;
+}
+
+.checkbox-container.disabled .checkbox-input {
+    pointer-events: none;
+    background-color: transparent;
+    border-color: var(--interactive-disabled-text);
+    border-width: 2px;
+}
+
+.checkbox-container.disabled .checkbox-input:checked {
+    background-color: transparent;
+    border-color: var(--interactive-disabled-text);
+    border-width: 2px;
+}
+
+.checkbox-container.disabled .checkbox-input:checked::before {
+    background-color: var(--interactive-disabled-text);
+}
+
+.checkbox-container.disabled span {
+    color: var(--interactive-disabled-text);
+}
+
+.checkbox-container.disabled span {
+    color: var(--interactive-disabled-text);
+}
+
+/* =========================================================
+   8. COMPONENT: DROPDOWN (.dropdown-group)
+========================================================= */
+
+.dropdown-group {
+    position: relative;
+    width: 100%;
+    /* Removed max-width: 320px */
+    font-family: var(--font-family-inter);
+}
+
+.dropdown-trigger {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--input-gap, 12px);
+    width: 100%;
+    height: var(--input-height);
+    padding: var(--input-padding-v) var(--input-padding-h);
+    background: var(--input-bg-default);
+    border: 1px solid var(--input-border-default);
+    border-radius: var(--radius-interactive);
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    box-sizing: border-box;
+    color: var(--text-primary);
+    font-weight: 500;
+    user-select: none;
+    font-size: var(--input-font-size);
+}
+
+.dropdown-trigger:hover {
+    border-color: var(--text-placeholder);
+}
+
+.dropdown-group.active .dropdown-trigger,
+.dropdown-trigger:focus-visible {
+    border-color: var(--focus-ring);
+    box-shadow: 0 0 0 1px var(--focus-ring);
+    outline: none;
+    z-index: 1;
+}
+
+.dropdown-group.active .dropdown-trigger .material-symbols-outlined {
+    transform: rotate(180deg);
+}
+
+.dropdown-trigger .material-symbols-outlined {
+    transition: transform 0.2s ease;
+    font-size: 24px;
+    /* Standard icon size */
+    color: var(--text-secondary);
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    width: 100%;
+    background-color: var(--surface-raised);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-interactive);
+    box-shadow: var(--elevation-lg);
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.2s ease-out;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
+}
+
+.dropdown-group.active .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    gap: 8px;
+    cursor: pointer;
+    color: var(--text-primary);
+    font-size: 16px;
+    /* Body/Default */
+    font-weight: 500;
+    transition: background-color 0.15s;
+    min-height: 40px;
+    /* Ensure touch target */
+}
+
+
+
+.dropdown-item .item-check-icon {
+    font-size: 24px;
+    color: var(--interactive-primary-default);
+    opacity: 0;
+    width: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dropdown-item.selected .item-check-icon {
+    opacity: 1;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+    background-color: var(--interactive-tertiary-hover);
+    outline: none;
+}
+
+.dropdown-item .checkbox-container {
+    width: 100%;
+    pointer-events: none;
+}
+
+.dropdown-item .checkbox-input {
+    pointer-events: auto;
+}
+
+.dropdown-value {
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dropdown-placeholder {
+    color: var(--text-placeholder);
+}
+
+.dropdown-icon {
+    font-size: 1.2em;
+    color: var(--text-secondary);
+    transition: transform 0.2s;
+}
+
+.dropdown-group.active .dropdown-icon {
+    transform: rotate(180deg);
+}
+
+.dropdown-group.input-sm {
+    --input-height: 35px;
+    --input-padding-v: 8px;
+    --input-padding-h: 16px;
+    --input-font-size: 12.8px;
+}
+
+.dropdown-group.input-sm .dropdown-value {
+    font-size: 12.8px;
+}
+
+.dropdown-group.input-md {
+    --input-height: 56px;
+    --input-padding-v: 16px;
+    --input-padding-h: 16px;
+    --input-font-size: 16px;
+}
+
+.dropdown-group.input-lg {
+    --input-height: 72px;
+    --input-padding-v: 24px;
+    --input-padding-h: 24px;
+    --input-font-size: 16px;
+}
+
+.dropdown-group.error .dropdown-trigger {
+    border-color: var(--status-error-text);
+}
+
+.dropdown-group.error .dropdown-icon {
+    color: var(--status-error-text);
+}
+
+.dropdown-group.disabled .dropdown-trigger {
+    background-color: var(--interactive-disabled-bg);
+    color: var(--interactive-disabled-text);
+    pointer-events: none;
+    cursor: not-allowed;
+    border: 1px solid var(--input-border-default);
+}
+
+.dropdown-group.disabled .dropdown-icon,
+.dropdown-group.disabled .dropdown-value {
+    color: var(--interactive-disabled-text);
+}
+
+/* =========================================================
+   9. COMPONENT: RADIO (.radio)
+========================================================= */
+
+.radio-container {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    font-family: var(--font-family-inter);
+    color: var(--text-primary);
+    gap: 8px;
+    position: relative;
+}
+
+/* O input real fica oculto visualmente mas acessível via teclado */
+.radio-input {
+    appearance: none;
+    -webkit-appearance: none;
+    margin: 0;
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--radio-border-unchecked);
+    /* Default Unchecked Border */
+    border-radius: 50%;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease-in-out;
+    background-color: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Inner Dot (Pseudo-element) */
+.radio-input::after {
+    content: "";
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: var(--radio-fill-checked);
+    transform: scale(0);
+    transition: transform 0.2s ease-in-out;
+}
+
+/* State: Checked */
+.radio-input:checked {
+    border-color: var(--radio-border-checked);
+}
+
+.radio-input:checked::after {
+    transform: scale(1);
+}
+
+/* State: Focus (Anel azul externo conforme spec #1471FC) */
+.radio-input:focus-visible,
+.radio-container.focus .radio-input {
+    outline: none;
+    border-color: var(--radio-focus-ring);
+    box-shadow: 0 0 0 2px var(--radio-focus-ring);
+}
+
+/* State: Disabled */
+.radio-container.disabled {
+    cursor: not-allowed;
+    opacity: 1;
+}
+
+.radio-container.disabled .radio-input {
+    border-color: var(--interactive-disabled-text);
+    pointer-events: none;
+}
+
+.radio-container.disabled .radio-input::after {
+    background-color: var(--interactive-disabled-text);
+}
+
+.radio-container.disabled span {
+    color: var(--interactive-disabled-text);
+}
+
+/* Typography for Radio Label */
+.radio-container span {
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 150%;
+    user-select: none;
+}
+
+/* =========================================================
+   10. COMPONENT: TOGGLE SWITCH (.toggle-switch-container)
+========================================================= */
+
+.toggle-switch-container {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+}
+
+/* The Track */
+.toggle-switch-track {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 2px;
+    width: 40px;
+    height: 24px;
+    background-color: var(--color-neutral-500);
+    /* Default Off */
+    border-radius: 9999px;
+    transition: background-color 0.2s ease-in-out;
+    box-sizing: border-box;
+}
+
+/* The Thumb */
+.toggle-switch-thumb {
+    width: 20px;
+    height: 20px;
+    background: #FFFFFF;
+    border-radius: 50%;
+    box-shadow: 0px 1px 3px rgba(43, 61, 114, 0.1), 0px 1px 2px rgba(43, 61, 114, 0.05);
+    transition: transform 0.2s ease-in-out;
+    pointer-events: none;
+}
+
+/* Label */
+.toggle-switch-label {
+    /* Body/Default */
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 500;
+    font-size: 16px;
+    line-height: 150%;
+    color: var(--text-primary);
+}
+
+/* Hidden Input */
+.toggle-switch-input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+    pointer-events: none;
+}
+
+/* State: Checked (Selected=True) */
+.toggle-switch-input:checked+.toggle-switch-track {
+    background-color: var(--color-orange-600);
+    /* Primary Default */
+    /* justify-content: flex-end; handled by translate */
+}
+
+.toggle-switch-input:checked+.toggle-switch-track .toggle-switch-thumb {
+    transform: translateX(16px);
+}
+
+/* State: Hover (Not Disabled) */
+.toggle-switch-container:hover:not(.disabled) .toggle-switch-input:not(:checked)+.toggle-switch-track {
+    background-color: var(--color-neutral-600);
+}
+
+.toggle-switch-container:hover:not(.disabled) .toggle-switch-input:checked+.toggle-switch-track {
+    background-color: var(--color-orange-700);
+}
+
+/* State: Focus */
+.toggle-switch-input:focus-visible+.toggle-switch-track {
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+/* State: Disabled */
+.toggle-switch-container.disabled {
+    cursor: not-allowed;
+    opacity: 1;
+}
+
+.toggle-switch-container.disabled .toggle-switch-track {
+    background-color: var(--color-neutral-300) !important;
+}
+
+.toggle-switch-container.disabled .toggle-switch-label {
+    color: var(--interactive-disabled-text);
+}
+
+/* =========================================================
+   11. COMPONENT: ALERT (.alert)
+========================================================= */
+
+.alert {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 24px;
+    gap: 16px;
+    width: 100%;
+    /* max-width is controlled by parent, but design says 315px fixed or responsive */
+    max-width: 400px;
+    border-radius: 8px;
+    position: relative;
+    font-family: var(--font-family-inter);
+    transition: all 0.2s ease-in-out;
+}
+
+/* Alert Content Wrapper */
+.alert-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+    /* Crucial for text-overflow to work in flex child */
+}
+
+.alert-title {
+    font-weight: 800;
+    font-size: 14px;
+    /* Small typography as requested */
+    line-height: 150%;
+    margin: 0;
+
+    /* Responsiveness/Truncation */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+
+.alert-description {
+    font-weight: 500;
+    font-size: 16px;
+    line-height: 150%;
+    margin: 0;
+
+    /* Ensure text wraps */
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    width: 100%;
+}
+
+/* Icons */
+.alert-icon {
+    width: 24px;
+    height: 24px;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+}
+
+/* Force filled icons for Alert */
+.alert .material-symbols-outlined {
+    font-variation-settings: 'FILL' 1;
+}
+
+/* Close Button */
+.alert-close {
+    /* Simplified: inheriting from .btn */
+    flex: none;
+}
+
+/* Remove direct icon styling if .btn handles it, but check specifics */
+/* .alert-close .material-symbols-outlined { font-size: 16px; } -> .btn-sm handles this (16px) */
+
+/* --- TYPES & STYLES --- */
+
+/* 1. INFO */
+.alert-info.alert-filled {
+    background-color: var(--status-info-bg);
+    /* #cfeafe */
+    border: 1px solid var(--status-info-text);
+    /* #0a40b5 */
+}
+
+.alert-info.alert-filled .alert-title,
+.alert-info.alert-filled .alert-description,
+.alert-info.alert-filled .alert-icon {
+    color: var(--status-info-text);
+}
+
+/* .alert-close color handled by .btn-destructive class now */
+
+.alert-info.alert-subtle {
+    background-color: var(--surface-raised);
+    /* White */
+    border: 1px solid var(--status-info-text);
+}
+
+.alert-info.alert-subtle .alert-title {
+    color: var(--status-info-text);
+}
+
+.alert-info.alert-subtle .alert-description {
+    color: var(--text-primary);
+    /* #2b3d72 */
+}
+
+.alert-info.alert-subtle .alert-icon {
+    color: var(--status-info-text);
+}
+
+.alert-info.alert-subtle .alert-close {
+    background-color: var(--interactive-primary-default);
+    color: var(--text-on-interactive);
+}
+
+/* 2. SUCCESS */
+.alert-success.alert-filled {
+    background-color: var(--status-success-bg);
+    /* #edfcd4 */
+    border: 1px solid var(--status-success-text);
+    /* #369614 */
+}
+
+.alert-success.alert-filled .alert-title,
+.alert-success.alert-filled .alert-description,
+.alert-success.alert-filled .alert-icon {
+    color: var(--status-success-text);
+}
+
+.alert-success.alert-filled .alert-close {
+    background-color: var(--interactive-tertiary-default);
+    color: var(--text-primary);
+}
+
+.alert-success.alert-subtle {
+    background-color: var(--surface-raised);
+    border: 1px solid var(--status-success-text);
+}
+
+.alert-success.alert-subtle .alert-title {
+    color: var(--status-success-text);
+}
+
+.alert-success.alert-subtle .alert-description {
+    color: var(--text-primary);
+}
+
+.alert-success.alert-subtle .alert-icon {
+    color: var(--status-success-text);
+}
+
+.alert-success.alert-subtle .alert-close {
+    background-color: var(--interactive-primary-default);
+    color: var(--text-on-interactive);
+}
+
+/* 3. WARNING */
+.alert-warning.alert-filled {
+    background-color: var(--status-warning-bg);
+    /* #fff4cc */
+    border: 1px solid var(--status-warning-text);
+    /* #b76d00 */
+}
+
+.alert-warning.alert-filled .alert-title,
+.alert-warning.alert-filled .alert-description,
+.alert-warning.alert-filled .alert-icon {
+    color: var(--status-warning-text);
+}
+
+.alert-warning.alert-filled .alert-close {
+    background-color: var(--interactive-tertiary-default);
+    color: var(--text-primary);
+}
+
+.alert-warning.alert-subtle {
+    background-color: var(--surface-raised);
+    border: 1px solid var(--status-warning-text);
+}
+
+.alert-warning.alert-subtle .alert-title {
+    color: var(--status-warning-text);
+}
+
+.alert-warning.alert-subtle .alert-description {
+    color: var(--text-primary);
+}
+
+.alert-warning.alert-subtle .alert-icon {
+    color: var(--status-warning-text);
+}
+
+.alert-warning.alert-subtle .alert-close {
+    background-color: var(--interactive-primary-default);
+    color: var(--text-on-interactive);
+}
+
+/* 4. ERROR */
+.alert-error.alert-filled {
+    background-color: var(--status-error-bg);
+    /* #ffe6d8 */
+    border: 1px solid var(--status-error-text);
+    /* #b71e33 */
+}
+
+.alert-error.alert-filled .alert-title,
+.alert-error.alert-filled .alert-description,
+.alert-error.alert-filled .alert-icon {
+    color: var(--status-error-text);
+}
+
+.alert-error.alert-filled .alert-close {
+    background-color: var(--interactive-tertiary-default);
+    color: var(--text-primary);
+}
+
+.alert-error.alert-subtle {
+    background-color: var(--surface-raised);
+    border: 1px solid var(--status-error-text);
+}
+
+.alert-error.alert-subtle .alert-title {
+    color: var(--status-error-text);
+}
+
+.alert-error.alert-subtle .alert-description {
+    color: var(--text-primary);
+}
+
+.alert-error.alert-subtle .alert-icon {
+    color: var(--status-error-text);
+}
+
+.alert-error.alert-subtle .alert-close {
+    background-color: var(--interactive-primary-default);
+    color: var(--text-on-interactive);
+}
+
+/* =========================================================
+   12. COMPONENT: TOAST (.toast)
+========================================================= */
+
+.toast {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    gap: 16px;
+    width: 100%;
+    max-width: 424px;
+    background-color: var(--surface-raised);
+    /* White/Surface */
+    border-radius: 8px;
+    box-shadow: var(--elevation-lg);
+    font-family: var(--font-family-inter);
+    position: relative;
+    border: 1px solid transparent;
+    /* Set by modifier */
+}
+
+/* Left components: Text + Check Icon */
+.toast-body {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    flex-grow: 1;
+}
+
+.toast-message {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 500;
+    font-size: 16px;
+    line-height: 150%;
+    color: var(--text-primary);
+}
+
+.toast-indicator-icon {
+    width: 24px;
+    height: 24px;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Right components: Action Text + Close Button */
+.toast-actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    flex: none;
+}
+
+/* .toast-action-btn uses .btn classes now */
+/* Toast Action & Close styles handled by .btn classes now */
+
+
+/* --- VARIANTS --- */
+
+/* Info */
+.toast-info {
+    border-color: var(--color-info-700);
+}
+
+.toast-info .toast-indicator-icon {
+    color: var(--color-info-700);
+}
+
+/* Success */
+.toast-success {
+    border-color: var(--color-success-700);
+}
+
+.toast-success .toast-indicator-icon {
+    color: var(--color-success-700);
+}
+
+/* Warning */
+.toast-warning {
+    border-color: var(--color-warning-700);
+}
+
+.toast-warning .toast-indicator-icon {
+    color: var(--color-warning-700);
+}
+
+/* Error */
+.toast-error {
+    border-color: var(--color-error-700);
+}
+
+.toast-error .toast-indicator-icon {
+    color: var(--color-error-700);
+}
+
+/* Dark Mode Overrides */
+/* The styles use variables so should generally work, but let's check text colors */
+[data-theme="dark"] .toast {
+    background-color: var(--surface-raised);
+    /* Darker gray */
+}
+
+/* =========================================================
+   13. COMPONENT: MODAL (.modal)
+========================================================= */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--surface-overlay);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease-in-out;
+}
+
+.modal-overlay.open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 32px;
+    gap: 24px;
+    background-color: var(--surface-raised);
+    box-shadow: var(--elevation-xl);
+    border-radius: 16px;
+    position: relative;
+    max-width: 90%;
+    box-sizing: border-box;
+    transform: translateY(20px);
+    transition: transform 0.3s ease-out, padding 0.3s ease-out;
+}
+
+.modal-overlay.open .modal {
+    transform: translateY(0);
+}
+
+/* Modal Responsiveness */
+@media (max-width: 600px) {
+    .modal {
+        padding: 16px;
+        width: 100% !important;
+        /* Ensure it doesn't overflow or stay too small if set by modifier */
+        max-width: 90%;
+    }
+}
+
+/* Sizes */
+.modal-sm {
+    width: 400px;
+}
+
+.modal-lg {
+    width: 600px;
+}
+
+/* Header */
+.modal-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    gap: 16px;
+}
+
+.modal-title {
+    font-family: var(--font-family-montserrat);
+    font-style: normal;
+    font-weight: 700;
+    font-size: 19.2px;
+    line-height: 135%;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* .modal-close-btn refactored to use .btn .btn-icon-only */
+/* Styles handled by .btn class now */
+
+.modal-close-btn i {
+    font-size: 24px;
+}
+
+/* Body */
+.modal-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    /* Per spec/print: centered text? */
+    width: 100%;
+    font-family: var(--font-family-inter);
+    font-style: normal;
+    font-weight: 500;
+    font-size: 16px;
+    line-height: 150%;
+    color: var(--text-secondary);
+    /* #475B8A */
+    text-align: center;
+}
+
+/* Footer */
+.modal-footer {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+    width: 100%;
+    gap: 8px;
+}
