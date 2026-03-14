@@ -295,6 +295,29 @@ app.get('/api/image-proxy', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/audit/annotations?nodeId=...
+ * Tenta buscar anotações do Dev Mode via MCP.
+ * Retorna { annotations: string | null } — nunca falha (graceful degradation).
+ */
+app.get('/api/audit/annotations', async (req, res) => {
+  const { nodeId } = req.query;
+  if (!nodeId) return res.json({ annotations: null });
+
+  const toolsToTry = ['get_annotations', 'get_dev_resources', 'get_comments'];
+  for (const toolName of toolsToTry) {
+    try {
+      const result = await callMCP('tools/call', { name: toolName, arguments: { nodeId } });
+      const text = result?.result?.content?.[0]?.text;
+      if (text && text.trim()) {
+        return res.json({ annotations: text.trim() });
+      }
+    } catch { /* tool may not exist — continue */ }
+  }
+
+  res.json({ annotations: null });
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', mcpConnected: mcpSessionId !== null });
 });
