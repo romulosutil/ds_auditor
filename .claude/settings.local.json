@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:docs.google.com)",
+      "Bash(find /c/Users/sutil/Desktop/lib/ds_auditor/.claude/worktrees/heuristic-germain -maxdepth 3 -not -path */node_modules/* -not -path */.git/* -not -path */dist/*)",
+      "WebFetch(domain:doc-04-98-docstext.googleusercontent.com)",
+      "mcp__c1fc4002-5f49-5f9d-a4e5-93c4ef5d6a75__google_drive_fetch",
+      "Bash(npm install:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(gh pr:*)",
+      "Bash(where gh:*)"
+    ]
+  }
+}

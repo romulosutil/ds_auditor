@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Vite Dev Server (Frontend)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/vite/bin/vite.js"],
+      "port": 3000
+    },
+    {
+      "name": "Express Proxy (Figma MCP Bridge)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server.mjs"],
+      "port": 3001
+    }
+  ]
+}
