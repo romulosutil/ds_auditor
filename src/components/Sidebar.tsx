@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Layers, Palette, Baseline, ScanLine, Maximize, FileText, CheckCircle2, Search, AlertCircle, Zap } from 'lucide-react';
+import { Layers, Palette, Baseline, ScanLine, Maximize, FileText, CheckCircle2, Search, AlertCircle, Zap, Accessibility, Sparkles } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { checkProxyHealth } from '../services/figmaService';
 
@@ -16,7 +16,10 @@ const CATEGORIES = [
   { id: 'spacing', label: 'Espaçamento', icon: Maximize },
   { id: 'components', label: 'Componentes', icon: Layers },
   { id: 'radii', label: 'Raios', icon: ScanLine },
-  { id: 'naming', label: 'Naming', icon: FileText },
+  { id: 'naming', label: 'Nomenclatura', icon: FileText },
+  { id: 'a11y', label: 'Acessibilidade', icon: Accessibility },
+  { id: 'heuristics', label: 'Heurísticas', icon: Zap },
+  { id: 'styles', label: 'Estilos (Shadows/Borders)', icon: Sparkles },
 ];
 
 export function Sidebar({ onStartAudit, isAuditing, url, setUrl }: SidebarProps) {

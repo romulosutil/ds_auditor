@@ -1,17 +1,23 @@
 @import "tailwindcss";
 
-@theme {
+:root {
+  /* Force standard hex colors to avoid oklch/oklab errors in html2canvas (Tailwind 4) */
+  --color-zinc-50: #fafafa;
+  --color-zinc-100: #f4f4f5;
+  --color-zinc-200: #e4e4e7;
+  --color-zinc-300: #d4d4d8;
+  --color-zinc-400: #a1a1aa;
+  --color-zinc-500: #71717a;
+  --color-zinc-600: #52525b;
+  --color-zinc-700: #3f3f46;
+  --color-zinc-800: #27272a;
+  --color-zinc-900: #18181b;
+
   --color-primary-50: #EEF2FF;
   --color-primary-100: #E0E7FF;
   --color-primary-500: #6366F1;
   --color-primary-600: #4F46E5;
   --color-primary-900: #312E81;
-  
-  --color-zinc-50: #FAFAFA;
-  --color-zinc-100: #F4F4F5;
-  --color-zinc-200: #E4E4E7;
-  --color-zinc-800: #27272A;
-  --color-zinc-900: #18181B;
 
   --color-error-50: #FEF2F2;
   --color-error-500: #EF4444;
@@ -26,6 +32,12 @@
   --color-success-600: #059669;
 
   --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+/* Força o uso de cores compatíveis com html2canvas durante a captura */
+.pdf-capture, .pdf-capture * {
+  /* No overrides needed here for oklab, as :root already sets hex fallbacks */
+  color-scheme: light !important;
 }
 
 body {

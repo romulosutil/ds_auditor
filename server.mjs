@@ -145,8 +145,10 @@ app.post('/api/audit', async (req, res) => {
   if (!url) return res.status(400).json({ error: 'URL do Figma é obrigatória' });
 
   try {
-    const { fileKey, nodeId } = parseFigmaUrl(url);
+    const { fileKey, nodeId, fileName } = parseFigmaUrl(url);
     if (!nodeId) throw new Error('Não foi possível extrair o Node ID.');
+
+    console.log(`[Audit] Iniciando auditoria para: ${fileName} (${nodeId})`);
 
     // Step 1: Metadata
     const metaResult = await callMCP('tools/call', { name: 'get_metadata', arguments: { nodeId } });
@@ -166,8 +168,17 @@ app.post('/api/audit', async (req, res) => {
     const context = ctxResult?.result?.content?.[0]?.text || '';
 
     // Step 4: Image
-    const imgResult = await callMCP('tools/call', { name: 'get_screenshot', arguments: { nodeId } });
-    const previewUrl = imgResult?.result?.content?.[0]?.text || null;
+    let previewUrl = null;
+    try {
+      // Timeout de 15s para screenshot
+      const imgRes = await Promise.race([
+        callMCP('tools/call', { name: 'get_screenshot', arguments: { nodeId } }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao capturar screenshot')), 15000))
+      ]);
+      previewUrl = imgRes?.result?.content?.[0]?.text || null;
+    } catch (e) {
+      console.warn(`[Audit] Screenshot falhou: ${e.message}`);
+    }
 
     res.json({
       nodeId,
@@ -180,13 +191,13 @@ app.post('/api/audit', async (req, res) => {
       layers: [parseXmlTree(xml, nodeId, variables, context)]
     });
   } catch (err) {
+    console.error(`[Audit] Erro fatal: ${err.message}`);
     res.status(500).json({ error: err.message });
   }
 });
 
 /**
  * GET /api/audit/stream?url=...
- * Real-time feedback via SSE
  */
 app.get('/api/audit/stream', async (req, res) => {
   const { url } = req.query;
@@ -205,6 +216,7 @@ app.get('/api/audit/stream', async (req, res) => {
     const { fileKey, nodeId, fileName } = parseFigmaUrl(url);
     if (!nodeId) throw new Error('Não foi possível extrair o Node ID.');
 
+    console.log(`[Stream] Iniciando para: ${fileName} (${nodeId})`);
     sendEvent('init', 10, 'Conectando ao Figma MCP...');
     
     sendEvent('metadata', 20, 'Extraindo estrutura XML...');
@@ -227,8 +239,17 @@ app.get('/api/audit/stream', async (req, res) => {
     const rootLayer = parseXmlTree(xml, nodeId, variables, context);
 
     sendEvent('image', 80, 'Renderizando screenshot do frame...');
-    const imgResult = await callMCP('tools/call', { name: 'get_screenshot', arguments: { nodeId } });
-    const previewUrl = imgResult?.result?.content?.[0]?.text || null;
+    let previewUrl = null;
+    try {
+      const imgRes = await Promise.race([
+        callMCP('tools/call', { name: 'get_screenshot', arguments: { nodeId } }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout screenshot')), 15000))
+      ]);
+      previewUrl = imgRes?.result?.content?.[0]?.text || null;
+    } catch (e) {
+      console.warn(`[Stream] Falha no screenshot: ${e.message}`);
+      // Continuamos sem preview ao invés de travar
+    }
 
     sendEvent('complete', 100, 'Auditoria pronta!', {
       nodeId,
@@ -242,6 +263,7 @@ app.get('/api/audit/stream', async (req, res) => {
     });
 
   } catch (err) {
+    console.error(`[Stream] Erro: ${err.message}`);
     sendEvent('error', 0, err.message);
   } finally {
     res.end();

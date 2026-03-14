@@ -50,7 +50,7 @@ export function checkA11y(layers: FigmaLayer[], allLayers: FigmaLayer[]): AuditI
 
         if (contrast < minContrast) {
           issues.push({
-            category: 'colors',
+            category: 'a11y',
             severity: 'error',
             message: `Baixo contraste detectado: ${contrast.toFixed(2)}:1. (Nível AA exige ${minContrast}:1)`,
             suggestion: `Aumente o contraste entre ${textFill.hex} e o fundo ${bgHex}.`,
@@ -67,7 +67,7 @@ export function checkA11y(layers: FigmaLayer[], allLayers: FigmaLayer[]): AuditI
       const fontSize = layer.fontSize || 12;
       if (fontSize < 12) {
         issues.push({
-          category: 'typography',
+          category: 'a11y',
           severity: 'warning',
           message: `Texto muito pequeno: ${fontSize}px.`,
           suggestion: 'Design Systems devem evitar fontes menores que 12px para garantir legibilidade.',

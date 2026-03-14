@@ -20,7 +20,7 @@ export function checkHeuristics(layers: FigmaLayer[], _allLayers: FigmaLayer[]):
       const minSize = 44;
       if (layer.width < minSize || layer.height < minSize) {
         issues.push({
-          category: 'components',
+          category: 'heuristics',
           severity: 'warning',
           message: `Área de clique reduzida: ${Math.round(layer.width)}x${Math.round(layer.height)}px.`,
           suggestion: `Aumente o tamanho para pelo menos ${minSize}x${minSize}px (Heurística de Usabilidade) ou adicione padding transparente.`,

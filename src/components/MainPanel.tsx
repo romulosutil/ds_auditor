@@ -13,6 +13,9 @@ const CATEGORY_LABELS: Record<AuditCategory, string> = {
   radii: 'Raios',
   components: 'Componentes',
   naming: 'Nomenclatura',
+  a11y: 'Acessibilidade',
+  heuristics: 'Heurísticas',
+  styles: 'Estilos (Sombras/Bordas)',
 };
 
 interface MainPanelProps {
@@ -46,17 +49,65 @@ export function MainPanel({ results, isAuditing, previewUrl, frameName, fileName
     });
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (!printRef.current) return;
+    
+    // Feedback visual opcional ou apenas execução direta
     const element = printRef.current;
+    
+    // Opções otimizadas para v3.0
     const opt = {
-      margin: 10,
-      filename: `ds-auditor-report-${new Date().toISOString().slice(0, 10)}.pdf`,
+      margin: [10, 10, 10, 10],
+      filename: `ds-auditor-v3-${frameName || 'report'}-${new Date().toISOString().slice(0, 10)}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      html2canvas: { 
+        scale: 2, 
+        useCORS: true,
+        letterRendering: true,
+        scrollY: 0,
+        windowWidth: 1200,
+        onclone: (clonedDoc: Document) => {
+          // 1. Remove all link tags to avoid external oklch/modern CSS
+          const links = clonedDoc.querySelectorAll('link[rel="stylesheet"]');
+          links.forEach(l => l.remove());
+
+          // 2. Aggressive sanitization of all <style> tags
+          const styles = clonedDoc.querySelectorAll('style');
+          styles.forEach(s => {
+            if (s.textContent) {
+              s.textContent = s.textContent
+                .replace(/oklch\([^)]+\)/g, '#71717a')
+                .replace(/oklab\([^)]+\)/g, '#71717a')
+                .replace(/color-mix\([^)]+\)/g, '#71717a');
+            }
+          });
+
+          // 3. Sanitize inline styles in all elements
+          const allElements = clonedDoc.querySelectorAll('*');
+          allElements.forEach(el => {
+            if (el instanceof HTMLElement) {
+              const style = el.getAttribute('style');
+              if (style && (style.includes('okl') || style.includes('color-mix'))) {
+                el.setAttribute('style', style
+                  .replace(/oklch\([^)]+\)/g, '#71717a')
+                  .replace(/oklab\([^)]+\)/g, '#71717a')
+                  .replace(/color-mix\([^)]+\)/g, '#71717a')
+                );
+              }
+            }
+          });
+        }
+      },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'], avoid: '.border.rounded-xl' }
     };
-    html2pdf().set(opt).from(element).save();
+
+    try {
+      await html2pdf().set(opt).from(element).save();
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      alert('Houve um erro ao gerar o PDF. Verifique o console para mais detalhes.');
+    }
   };
 
   if (isAuditing) {
@@ -138,7 +189,7 @@ export function MainPanel({ results, isAuditing, previewUrl, frameName, fileName
          </button>
       </div>
 
-      <div ref={printRef} className="p-8 max-w-6xl mx-auto space-y-8 bg-[#FAFAFA]">
+      <div ref={printRef} className="p-8 max-w-6xl mx-auto space-y-8 bg-[#FAFAFA] pdf-capture">
           <ScoreCards 
              score={results.score} 
              compliance={results.compliance} 
@@ -205,13 +256,14 @@ export function MainPanel({ results, isAuditing, previewUrl, frameName, fileName
                  <div className="space-y-4">
                    {categoryEntries.map(([catId, issues]) =>
                        issues && issues.length > 0 ? (
-                         <CategoryDetails 
-                           key={catId}
-                           title={CATEGORY_LABELS[catId]} 
-                           type={issues.some(i => i.severity === 'error') ? 'error' : 'warning'} 
-                           issues={issues} 
-                           onHoverIssue={setHoveredIssue}
-                         />
+                         <div key={catId} className="break-inside-avoid">
+                           <CategoryDetails 
+                             title={CATEGORY_LABELS[catId]} 
+                             type={issues.some(i => i.severity === 'error') ? 'error' : 'warning'} 
+                             issues={issues} 
+                             onHoverIssue={setHoveredIssue}
+                           />
+                         </div>
                        ) : null
                    )}
                  </div>

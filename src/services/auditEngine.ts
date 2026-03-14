@@ -13,7 +13,7 @@ import { checkComponentCompleteness } from './componentAnalysis';
 // ─── Types ────────────────────────────────────────────────────────────────
 
 export type IssueType = 'error' | 'warning';
-export type AuditCategory = 'colors' | 'typography' | 'spacing' | 'radii' | 'components' | 'naming';
+export type AuditCategory = 'colors' | 'typography' | 'spacing' | 'radii' | 'components' | 'naming' | 'a11y' | 'heuristics' | 'styles';
 
 export interface AuditIssue {
   category: AuditCategory;
@@ -93,8 +93,12 @@ export const DS4FUN_PRIMITIVE_COLORS = new Set([
 ]);
 
 export const DS4FUN_FONTS = new Set(['Montserrat', 'Inter']);
-export const DS4FUN_RADII = new Set([0, 8, 16, 9999]);
-export const DS4FUN_SPACING = new Set([0, 4, 8, 12, 16, 24, 32, 40, 48]);
+export const DS4FUN_RADII = new Set([0, 4, 8, 16, 9999]);
+export const DS4FUN_SPACING = new Set([0, 2, 4, 8, 12, 16, 24, 32, 40, 48]);
+export const DS4FUN_BORDERS = new Set([0, 1, 2]);
+export const DS4FUN_SHADOWS = [
+  'elevation-sm', 'elevation-md', 'elevation-lg', 'elevation-xl'
+];
 
 export const DS4FUN_COMPONENT_PREFIXES = [
   'Button/', 'btn/', 'Btn/', 'Input/', 'input/', 'Checkbox/', 'checkbox/',
@@ -244,6 +248,50 @@ export function checkNaming(layers: FigmaLayer[]): AuditIssue[] {
     }));
 }
 
+export function checkBorders(layers: FigmaLayer[]): AuditIssue[] {
+  const issues: AuditIssue[] = [];
+  layers.forEach(l => {
+    // Figma often represents borders in 'strokes'
+    const anyStroke = (l as any).strokes?.length > 0;
+    const strokeWeight = (l as any).strokeWeight;
+    if (anyStroke && strokeWeight !== undefined && !DS4FUN_BORDERS.has(strokeWeight)) {
+      issues.push({
+        category: 'styles',
+        severity: 'warning',
+        message: `Espessura de borda não padronizada: ${strokeWeight}px.`,
+        suggestion: 'O DS4FUN utiliza bordas de 1px (padrão) ou 2px (ênfase como Checkbox/Radio).',
+        layerId: l.id, layerName: l.name,
+        x: l.x, y: l.y, width: l.width, height: l.height
+      });
+    }
+  });
+  return issues;
+}
+
+export function checkShadows(layers: FigmaLayer[]): AuditIssue[] {
+  const issues: AuditIssue[] = [];
+  layers.forEach(l => {
+    const effects = (l as any).effects || [];
+    const dropShadows = effects.filter((e: any) => e.type === 'DROP_SHADOW' && e.visible);
+    
+    if (dropShadows.length > 0) {
+      // Simplificação v3.0: Se tem sombra e não é um componente da lib, avisamos para conferir tokens de elevation
+      const hasElevationToken = l.name.toLowerCase().includes('elevation') || l.name.toLowerCase().includes('shadow');
+      if (!hasElevationToken) {
+        issues.push({
+          category: 'styles',
+          severity: 'warning',
+          message: 'Sombra customizada detectada.',
+          suggestion: 'Certifique-se de estar usando os tokens de elevação (elevation-sm, md, lg, xl) do DS4FUN.',
+          layerId: l.id, layerName: l.name,
+          x: l.x, y: l.y, width: l.width, height: l.height
+        });
+      }
+    }
+  });
+  return issues;
+}
+
 function calculateScore(issues: AuditIssue[], totalLayers: number): { score: number; compliance: number } {
   const errorCount = issues.filter(i => i.severity === 'error').length;
   const warningCount = issues.filter(i => i.severity === 'warning').length;
@@ -273,6 +321,7 @@ export async function runAudit(
     { id: 'radii',      fn: checkRadii },
     { id: 'components', fn: checkComponents },
     { id: 'naming',     fn: checkNaming },
+    { id: 'styles',     fn: (l) => [...checkBorders(l), ...checkShadows(l)] },
   ];
 
   const advancedChecks = [
