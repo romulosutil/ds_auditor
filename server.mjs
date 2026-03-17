@@ -16,6 +16,7 @@
 
 import express from 'express';
 import cors from 'cors';
+import puppeteer from 'puppeteer';
 
 const app = express();
 const PORT = 3001;
@@ -444,6 +445,95 @@ function applyStylesFromContext(layer, context) {
   const pMatch = context.match(/p[xy]-\[var\([^,]+,([\d.]+)px\)\]|p-([\d.]+)/);
   if (pMatch) layer.padding = parseFloat(pMatch[1] || pMatch[2]);
 }
+
+/**
+ * POST /api/extract-dom
+ * Body: { url: string, viewports: number[] }
+ *
+ * Usa Puppeteer para acessar a URL, aguarda carregamento e extrai
+ * uma árvore simplificada do DOM com getComputedStyle por breakpoint.
+ * Suporta N frames Figma → resize do viewport por largura.
+ */
+app.post('/api/extract-dom', async (req, res) => {
+  const { url, viewports = [1440] } = req.body;
+  if (!url) return res.status(400).json({ error: 'URL é obrigatória' });
+
+  let browser = null;
+  try {
+    console.log(`[ExtractDOM] Iniciando extração: ${url}`);
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    });
+
+    const results = [];
+
+    for (const viewportWidth of viewports) {
+      const page = await browser.newPage();
+      await page.setViewport({ width: viewportWidth, height: 900 });
+      await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+
+      // Extrai árvore simplificada do DOM com computed styles
+      const domTree = await page.evaluate((width) => {
+        const RELEVANT_TAGS = ['button', 'input', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span', 'label', 'select', 'textarea', 'nav', 'header', 'footer', 'section', 'main', 'div', 'form', 'li', 'ul', 'ol', 'img'];
+        const STYLE_PROPS = ['backgroundColor', 'color', 'fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'gap', 'padding', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'display', 'flexDirection', 'alignItems', 'justifyContent', 'borderRadius', 'width', 'height', 'borderWidth', 'borderColor', 'boxShadow'];
+
+        function extractElement(el, depth = 0) {
+          if (depth > 6) return null;
+          const tag = el.tagName?.toLowerCase();
+          if (!RELEVANT_TAGS.includes(tag)) return null;
+
+          const rect = el.getBoundingClientRect();
+          if (rect.width === 0 && rect.height === 0) return null;
+
+          const cs = window.getComputedStyle(el);
+          const styles = {};
+          for (const prop of STYLE_PROPS) styles[prop] = cs[prop] || '';
+
+          const text = (el.innerText || el.textContent || '').trim().slice(0, 100);
+          const children = Array.from(el.children)
+            .map(child => extractElement(child, depth + 1))
+            .filter(Boolean);
+
+          return {
+            tagName: tag,
+            text,
+            role: el.getAttribute('aria-label') || el.getAttribute('role') || '',
+            placeholder: el.getAttribute('placeholder') || '',
+            computedStyles: styles,
+            rect: { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) },
+            children,
+          };
+        }
+
+        const body = document.body;
+        return {
+          viewport: width,
+          title: document.title,
+          elements: Array.from(body.children).map(el => extractElement(el, 0)).filter(Boolean),
+        };
+      }, viewportWidth);
+
+      // Captura screenshot deste viewport
+      let screenshotBase64 = null;
+      try {
+        const screenshot = await page.screenshot({ type: 'png', fullPage: false });
+        screenshotBase64 = `data:image/png;base64,${screenshot.toString('base64')}`;
+      } catch { /* screenshot opcional */ }
+
+      results.push({ ...domTree, screenshotBase64 });
+      await page.close();
+      console.log(`[ExtractDOM] Viewport ${viewportWidth}px extraída com sucesso`);
+    }
+
+    res.json({ success: true, results });
+  } catch (err) {
+    console.error(`[ExtractDOM] Erro: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (browser) await browser.close();
+  }
+});
 
 app.listen(PORT, async () => {
   console.log(`🔌 DS Auditor Proxy running at http://localhost:${PORT}`);

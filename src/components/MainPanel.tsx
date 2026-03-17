@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Download, HelpCircle, ShieldCheck, ScanLine, ClipboardCheck, FlaskConical, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Download, HelpCircle, ShieldCheck, ScanLine, ClipboardCheck, FlaskConical, ChevronLeft, ChevronRight, Code2, AlertTriangle, AlertCircle, Info, CheckCircle2, Monitor } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { ScoreCards } from './ScoreCards';
 import { CategoryDetails } from './CategoryDetails';
@@ -8,8 +8,9 @@ import { ComponentTestPanel } from './ComponentTestPanel';
 import { cn } from '../lib/utils';
 import type { AuditResults, AuditCategory, AuditIssue } from '../services/auditEngine';
 import type { ComponentTestResults } from '../services/componentTestEngine';
-import type { JourneyFrame } from '../App';
+import type { JourneyFrame, DesignVsCodeResult } from '../App';
 import type { SidebarMode } from './Sidebar';
+import type { Divergence } from '../services/designVsCodeEngine';
 
 // ─── Constants ────────────────────────────────────────────────────────────
 
@@ -35,6 +36,7 @@ interface MainPanelProps {
   onSelectFrame: (i: number) => void;
   currentFrame: JourneyFrame | null;
   componentTestResult: ComponentTestResults | null;
+  designVsCodeResult: DesignVsCodeResult | null;
   sidebarMode: SidebarMode;
   isAuditing: boolean;
   progress: number;
@@ -78,7 +80,6 @@ function FrameNavigator({
         >
           <span className="text-[9px] font-bold opacity-60">{i + 1}</span>
           <span className="max-w-[100px] truncate">{frame.frameName}</span>
-          {/* Score badge */}
           <span className={cn(
             'text-[9px] font-bold px-1 py-0.5 rounded-full',
             frame.auditResults.score >= 80
@@ -153,15 +154,17 @@ function EmptyState({ mode }: { mode: SidebarMode }) {
     <main className="flex-1 flex flex-col items-center justify-center text-center p-8">
       <div className="bg-white p-6 rounded-3xl border border-[#E4E4E7] shadow-sm max-w-sm">
         <div className="w-12 h-12 bg-[#F4F4F5] rounded-xl flex items-center justify-center mb-4 mx-auto">
-          <HelpCircle className="w-6 h-6 text-[#A1A1AA]" />
+          {mode === 'designvsCode' ? <Code2 className="w-6 h-6 text-[#6366F1]" /> : <HelpCircle className="w-6 h-6 text-[#A1A1AA]" />}
         </div>
         <h2 className="text-lg font-semibold text-[#18181B] mb-2">
-          {mode === 'component' ? 'Aguardando Componente' : 'Aguardando Análise'}
+          {mode === 'component' ? 'Aguardando Componente' : mode === 'designvsCode' ? 'Aguardando Comparação' : 'Aguardando Análise'}
         </h2>
         <p className="text-sm text-[#71717A]">
           {mode === 'component'
             ? 'Cole a URL de um componente Figma e clique em "Testar Componente".'
-            : 'Cole a URL dos frames da jornada e clique em "Analisar Jornada".'}
+            : mode === 'designvsCode'
+              ? 'Insira a URL do ambiente dev e os links dos frames Figma para comparar.'
+              : 'Cole a URL dos frames da jornada e clique em "Analisar Jornada".'}
         </p>
       </div>
     </main>
@@ -258,7 +261,6 @@ function AuditView({
             </div>
           </div>
 
-          {/* Dev Mode Annotations */}
           {frame.annotations && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
               <h4 className="text-[10px] font-bold text-amber-700 uppercase tracking-wider mb-2">Anotações do Dev Mode</h4>
@@ -291,6 +293,219 @@ function AuditView({
   );
 }
 
+// ─── Design vs. Código View ───────────────────────────────────────────────
+
+function DivergenceCard({ div }: { div: Divergence }) {
+  const config = {
+    critical: {
+      border: 'border-red-200',
+      bg: 'bg-red-50',
+      icon: <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />,
+      badge: 'bg-red-100 text-red-700',
+      label: 'Crítico',
+    },
+    warning: {
+      border: 'border-amber-200',
+      bg: 'bg-amber-50',
+      icon: <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />,
+      badge: 'bg-amber-100 text-amber-700',
+      label: 'Aviso',
+    },
+    info: {
+      border: 'border-blue-200',
+      bg: 'bg-blue-50',
+      icon: <Info className="w-4 h-4 text-blue-500 flex-shrink-0" />,
+      badge: 'bg-blue-100 text-blue-700',
+      label: 'Info',
+    },
+  }[div.severity];
+
+  return (
+    <div className={cn('rounded-xl border p-4 space-y-2', config.border, config.bg)}>
+      <div className="flex items-start gap-3">
+        {config.icon}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider', config.badge)}>
+              {config.label}
+            </span>
+            <span className="text-[10px] font-bold text-[#71717A] uppercase tracking-wider">{div.type}</span>
+            <span className="text-[10px] text-[#A1A1AA]">· {div.frame}</span>
+          </div>
+          <p className="text-xs font-semibold text-[#18181B]">{div.element}</p>
+          <p className="text-[11px] text-[#71717A] mt-0.5 leading-relaxed">{div.message.replace(/^[🔴🟡ℹ️]\s*/, '')}</p>
+        </div>
+      </div>
+      <div className="flex gap-3 ml-7">
+        <div className="flex-1 bg-white rounded-lg px-3 py-2 border border-[#E4E4E7]">
+          <p className="text-[9px] font-bold text-[#A1A1AA] uppercase tracking-wider mb-0.5">Figma</p>
+          <p className="text-[11px] font-mono text-[#18181B] break-all">{div.figmaValue}</p>
+        </div>
+        <div className="flex-1 bg-white rounded-lg px-3 py-2 border border-[#E4E4E7]">
+          <p className="text-[9px] font-bold text-[#A1A1AA] uppercase tracking-wider mb-0.5">Código</p>
+          <p className="text-[11px] font-mono text-[#18181B] break-all">{div.codeValue}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DesignVsCodeView({ result }: { result: DesignVsCodeResult }) {
+  const [selectedFrameIdx, setSelectedFrameIdx] = useState(0);
+  const [filterSeverity, setFilterSeverity] = useState<'all' | 'critical' | 'warning' | 'info'>('all');
+
+  const { report, figmaFrames, viewportResults } = result;
+  const currentFigmaFrame = figmaFrames[selectedFrameIdx];
+  const currentViewport = viewportResults.find(v => v.viewport === currentFigmaFrame?.width);
+
+  const filteredDivergences = report.divergences.filter(d => {
+    if (filterSeverity === 'all') return true;
+    return d.severity === filterSeverity;
+  }).filter(d => !currentFigmaFrame || d.frame === currentFigmaFrame.frameName);
+
+  const scoreColor = report.score >= 80 ? 'text-emerald-600' : report.score >= 50 ? 'text-amber-600' : 'text-red-600';
+  const scoreBg = report.score >= 80 ? 'bg-emerald-50 border-emerald-200' : report.score >= 50 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200';
+
+  return (
+    <div className="p-8 max-w-7xl mx-auto space-y-8">
+      {/* Score summary */}
+      <div className="grid grid-cols-4 gap-4">
+        <div className={cn('rounded-2xl border p-5 flex flex-col items-center justify-center text-center', scoreBg)}>
+          <span className={cn('text-4xl font-bold', scoreColor)}>{report.score}</span>
+          <span className="text-[11px] font-bold text-[#A1A1AA] uppercase tracking-wider mt-1">Score QA</span>
+        </div>
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 flex flex-col items-center justify-center text-center">
+          <span className="text-4xl font-bold text-red-600">{report.criticalCount}</span>
+          <span className="text-[11px] font-bold text-[#A1A1AA] uppercase tracking-wider mt-1">Críticos</span>
+        </div>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 flex flex-col items-center justify-center text-center">
+          <span className="text-4xl font-bold text-amber-600">{report.warningCount}</span>
+          <span className="text-[11px] font-bold text-[#A1A1AA] uppercase tracking-wider mt-1">Avisos</span>
+        </div>
+        <div className="rounded-2xl border border-[#E4E4E7] bg-white p-5 flex flex-col items-center justify-center text-center">
+          <span className="text-4xl font-bold text-[#18181B]">{report.framesAnalyzed}</span>
+          <span className="text-[11px] font-bold text-[#A1A1AA] uppercase tracking-wider mt-1">Frames</span>
+        </div>
+      </div>
+
+      {/* Frame selector + Side-by-Side */}
+      {figmaFrames.length > 1 && (
+        <div className="flex gap-2">
+          {figmaFrames.map((f, i) => (
+            <button
+              key={i}
+              onClick={() => setSelectedFrameIdx(i)}
+              className={cn(
+                'flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border',
+                i === selectedFrameIdx
+                  ? 'bg-[#18181B] text-white border-[#18181B]'
+                  : 'bg-white text-[#71717A] border-[#E4E4E7] hover:border-[#D4D4D8]'
+              )}
+            >
+              <Monitor className="w-3.5 h-3.5" />
+              {f.frameName}
+              <span className="text-[9px] opacity-60">{f.width}px</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Side-by-Side: Figma Preview vs. Code Snapshot */}
+      <div className="grid grid-cols-2 gap-6">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <ScanLine className="w-4 h-4 text-[#6366F1]" />
+            <h3 className="text-sm font-semibold text-[#27272A]">
+              Figma — {currentFigmaFrame?.frameName ?? 'Frame'}
+              <span className="ml-2 text-[10px] text-[#A1A1AA] font-normal">{currentFigmaFrame?.width}px</span>
+            </h3>
+          </div>
+          <div className="bg-[#E4E4E7] rounded-2xl border border-[#D4D4D8] overflow-hidden aspect-video">
+            {currentFigmaFrame?.previewUrl ? (
+              <img
+                src={currentFigmaFrame.previewUrl}
+                alt={`Figma — ${currentFigmaFrame.frameName}`}
+                className="object-contain w-full h-full"
+              />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-[#A1A1AA]">
+                <ScanLine className="w-8 h-8" />
+                <p className="text-[11px]">Preview do Figma indisponível</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Code2 className="w-4 h-4 text-[#10B981]" />
+            <h3 className="text-sm font-semibold text-[#27272A]">
+              Código — {result.devUrl}
+              {currentViewport && (
+                <span className="ml-2 text-[10px] text-[#A1A1AA] font-normal">{currentViewport.viewport}px</span>
+              )}
+            </h3>
+          </div>
+          <div className="bg-[#E4E4E7] rounded-2xl border border-[#D4D4D8] overflow-hidden aspect-video">
+            {currentViewport?.screenshotBase64 ? (
+              <img
+                src={currentViewport.screenshotBase64}
+                alt={`Código — ${currentViewport.viewport}px`}
+                className="object-contain w-full h-full"
+              />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-[#A1A1AA]">
+                <Monitor className="w-8 h-8" />
+                <p className="text-[11px]">Screenshot do código indisponível</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Divergences list */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <h3 className="text-lg font-semibold tracking-tight text-[#18181B]">
+            Divergências Acionáveis
+            <span className="ml-2 text-sm font-normal text-[#71717A]">({report.divergences.length} total)</span>
+          </h3>
+          <div className="flex gap-2">
+            {(['all', 'critical', 'warning', 'info'] as const).map(sev => (
+              <button
+                key={sev}
+                onClick={() => setFilterSeverity(sev)}
+                className={cn(
+                  'px-3 py-1.5 rounded-xl text-xs font-bold border transition-all',
+                  filterSeverity === sev
+                    ? 'bg-[#18181B] text-white border-[#18181B]'
+                    : 'bg-white text-[#71717A] border-[#E4E4E7] hover:border-[#D4D4D8]'
+                )}
+              >
+                {sev === 'all' ? 'Todos' : sev === 'critical' ? '🔴 Críticos' : sev === 'warning' ? '🟡 Avisos' : 'ℹ️ Info'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {filteredDivergences.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-3 bg-white rounded-2xl border border-[#E4E4E7]">
+            <CheckCircle2 className="w-10 h-10 text-[#10B981]" />
+            <p className="text-sm font-semibold text-[#18181B]">Nenhuma divergência encontrada!</p>
+            <p className="text-xs text-[#71717A]">O código está alinhado com o design nesta categoria.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredDivergences.map((div, i) => (
+              <DivergenceCard key={i} div={div} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Export ──────────────────────────────────────────────────────────
 
 export function MainPanel({
@@ -299,6 +514,7 @@ export function MainPanel({
   onSelectFrame,
   currentFrame,
   componentTestResult,
+  designVsCodeResult,
   sidebarMode,
   isAuditing,
   progress,
@@ -360,6 +576,35 @@ export function MainPanel({
         totalFrames={sidebarMode === 'journey' ? Math.max(1, currentProcessingIndex + 1) : 1}
         currentIndex={currentProcessingIndex}
       />
+    );
+  }
+
+  // ── Design vs. Código Mode ───────────────────────────────────────────
+  if (sidebarMode === 'designvsCode') {
+    if (!designVsCodeResult) return <EmptyState mode="designvsCode" />;
+    return (
+      <main className="flex-1 overflow-y-auto bg-[#FAFAFA]">
+        <div className="sticky top-0 z-20 bg-[#FAFAFA]/80 backdrop-blur-md border-b border-[#E4E4E7] px-8 py-4 flex items-center gap-3 no-print">
+          <Code2 className="w-4 h-4 text-[#6366F1]" />
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-wider">Design vs. Código</span>
+            <h2 className="text-sm font-semibold text-[#18181B] leading-tight truncate">
+              {designVsCodeResult.devUrl}
+            </h2>
+          </div>
+          <div className={cn(
+            'text-[11px] font-bold px-3 py-1.5 rounded-full border',
+            designVsCodeResult.report.score >= 80
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              : designVsCodeResult.report.score >= 50
+                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                : 'bg-red-50 text-red-700 border-red-200'
+          )}>
+            Score QA: {designVsCodeResult.report.score}/100
+          </div>
+        </div>
+        <DesignVsCodeView result={designVsCodeResult} />
+      </main>
     );
   }
 

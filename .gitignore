@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Temp / generated data files
+*.json
+!tsconfig*.json
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

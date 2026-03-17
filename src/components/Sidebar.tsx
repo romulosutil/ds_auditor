@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Layers, Palette, Baseline, ScanLine, Maximize, FileText, CheckCircle2, Search, AlertCircle, Zap, Accessibility, Sparkles, Plus, X, FlaskConical, Map } from 'lucide-react';
+import { Layers, Palette, Baseline, ScanLine, Maximize, FileText, CheckCircle2, Search, AlertCircle, Zap, Accessibility, Sparkles, Plus, X, FlaskConical, Map, Code2, Monitor } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { checkProxyHealth } from '../services/figmaService';
 
-export type SidebarMode = 'journey' | 'component';
+export type SidebarMode = 'journey' | 'component' | 'designvsCode';
 
 interface SidebarProps {
   onStartAudit: (urls: string[], activeCategories: Set<string>) => void;
   onStartComponentTest: (url: string) => void;
+  onStartDesignVsCode: (devUrl: string, figmaUrls: string[]) => void;
   isAuditing: boolean;
   mode: SidebarMode;
   onModeChange: (mode: SidebarMode) => void;
@@ -25,7 +26,7 @@ const CATEGORIES = [
   { id: 'styles',     label: 'Estilos (Shadows/Borders)', icon: Sparkles      },
 ];
 
-export function Sidebar({ onStartAudit, onStartComponentTest, isAuditing, mode, onModeChange }: SidebarProps) {
+export function Sidebar({ onStartAudit, onStartComponentTest, onStartDesignVsCode, isAuditing, mode, onModeChange }: SidebarProps) {
   // Journey mode state
   const [frames, setFrames] = useState<string[]>(['']);
   const [activeCategories, setActiveCategories] = useState<Set<string>>(new Set(CATEGORIES.map(c => c.id)));
@@ -33,8 +34,15 @@ export function Sidebar({ onStartAudit, onStartComponentTest, isAuditing, mode, 
   // Component mode state
   const [componentUrl, setComponentUrl] = useState('');
 
+  // Design vs. Código state
+  const [devUrl, setDevUrl] = useState('');
+  const [figmaUrls, setFigmaUrls] = useState<string[]>(['', '']);
+
   // MCP status
   const [isConnected, setIsConnected] = useState(false);
+
+  // Top-level flow: 'audit' = Auditar Design, 'dvsc' = Design vs. Código
+  const topFlow = mode === 'designvsCode' ? 'dvsc' : 'audit';
 
   useEffect(() => {
     const check = async () => {
@@ -46,7 +54,7 @@ export function Sidebar({ onStartAudit, onStartComponentTest, isAuditing, mode, 
     return () => clearInterval(interval);
   }, []);
 
-  // ── Journey helpers ──────────────────────────────────────────────────
+  // ── Journey helpers ──────────────────────────────────────────────────────
   const addFrame = () => setFrames(f => [...f, '']);
   const removeFrame = (i: number) => setFrames(f => f.filter((_, idx) => idx !== i));
   const updateFrame = (i: number, val: string) => setFrames(f => { const n = [...f]; n[i] = val; return n; });
@@ -66,7 +74,21 @@ export function Sidebar({ onStartAudit, onStartComponentTest, isAuditing, mode, 
     if (componentUrl.trim()) onStartComponentTest(componentUrl.trim());
   };
 
+  // ── Design vs. Código helpers ────────────────────────────────────────────
+  const addFigmaUrl = () => setFigmaUrls(u => [...u, '']);
+  const removeFigmaUrl = (i: number) => setFigmaUrls(u => u.filter((_, idx) => idx !== i));
+  const updateFigmaUrl = (i: number, val: string) => setFigmaUrls(u => { const n = [...u]; n[i] = val; return n; });
+
+  const handleDesignVsCode = () => {
+    const validFigmaUrls = figmaUrls.filter(u => u.trim());
+    if (devUrl.trim() && validFigmaUrls.length > 0) {
+      onStartDesignVsCode(devUrl.trim(), validFigmaUrls);
+    }
+  };
+
   const readyFrames = frames.filter(u => u.trim()).length;
+  const readyFigmaUrls = figmaUrls.filter(u => u.trim()).length;
+  const canRunDvsc = devUrl.trim() && readyFigmaUrls > 0;
 
   return (
     <aside className="no-print w-80 shrink-0 border-r border-[#E4E4E7] bg-white flex flex-col h-full">
@@ -91,37 +113,156 @@ export function Sidebar({ onStartAudit, onStartComponentTest, isAuditing, mode, 
           {isConnected ? 'MCP Conectado' : 'MCP Desconectado'}
         </div>
 
-        {/* Mode Switcher */}
-        <div className="flex bg-[#F4F4F5] rounded-xl p-1 gap-1">
+        {/* Top-level flow toggle: Auditar Design vs Design vs. Código */}
+        <div className="flex bg-[#F4F4F5] rounded-xl p-1 gap-1 mb-3">
           <button
-            onClick={() => onModeChange('journey')}
+            onClick={() => onModeChange(mode === 'designvsCode' ? 'journey' : mode)}
             className={cn(
               'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all',
-              mode === 'journey'
+              topFlow === 'audit'
                 ? 'bg-white text-[#18181B] shadow-sm'
                 : 'text-[#71717A] hover:text-[#3F3F46]'
             )}
           >
-            <Map className="w-3.5 h-3.5" />
-            Jornada
+            <ScanLine className="w-3.5 h-3.5" />
+            Auditar Design
           </button>
           <button
-            onClick={() => onModeChange('component')}
+            onClick={() => onModeChange('designvsCode')}
             className={cn(
               'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all',
-              mode === 'component'
-                ? 'bg-white text-[#18181B] shadow-sm'
+              topFlow === 'dvsc'
+                ? 'bg-[#6366F1] text-white shadow-sm'
                 : 'text-[#71717A] hover:text-[#3F3F46]'
             )}
           >
-            <FlaskConical className="w-3.5 h-3.5" />
-            Componente
+            <Code2 className="w-3.5 h-3.5" />
+            Design vs. Código
           </button>
         </div>
+
+        {/* Sub-tabs: só aparece em "Auditar Design" */}
+        {topFlow === 'audit' && (
+          <div className="flex bg-[#F4F4F5] rounded-xl p-1 gap-1">
+            <button
+              onClick={() => onModeChange('journey')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all',
+                mode === 'journey'
+                  ? 'bg-white text-[#18181B] shadow-sm'
+                  : 'text-[#71717A] hover:text-[#3F3F46]'
+              )}
+            >
+              <Map className="w-3.5 h-3.5" />
+              Jornada
+            </button>
+            <button
+              onClick={() => onModeChange('component')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all',
+                mode === 'component'
+                  ? 'bg-white text-[#18181B] shadow-sm'
+                  : 'text-[#71717A] hover:text-[#3F3F46]'
+              )}
+            >
+              <FlaskConical className="w-3.5 h-3.5" />
+              Componente
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
+
+        {/* ── DESIGN VS. CÓDIGO MODE ── */}
+        {mode === 'designvsCode' && (
+          <div className="space-y-6">
+            {/* URL do Ambiente Dev/Prod */}
+            <div className="space-y-3">
+              <label className="block text-[11px] font-bold text-[#A1A1AA] uppercase tracking-widest">
+                URL do Ambiente Dev/Prod
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={devUrl}
+                  onChange={e => setDevUrl(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleDesignVsCode()}
+                  placeholder="http://localhost:3000"
+                  className="w-full pl-10 pr-4 py-3 bg-[#F4F4F5] border border-[#E4E4E7] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1]/20 focus:border-[#6366F1] transition-all placeholder:text-[#A1A1AA]"
+                />
+                <Monitor className="w-4 h-4 text-[#A1A1AA] absolute left-3.5 top-1/2 -translate-y-1/2" />
+              </div>
+              <p className="text-[10px] text-[#A1A1AA] leading-relaxed px-1">
+                URL da implementação front-end (localhost, staging, preview Vercel, etc.)
+              </p>
+            </div>
+
+            {/* Múltiplos Links do Figma */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold text-[#A1A1AA] uppercase tracking-widest">
+                  Frames do Figma
+                </label>
+                <span className="text-[10px] font-bold text-[#6366F1] bg-[#6366F1]/10 px-2 py-0.5 rounded-full">
+                  {readyFigmaUrls} frame{readyFigmaUrls !== 1 ? 's' : ''}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {figmaUrls.map((url, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={url}
+                        onChange={e => updateFigmaUrl(i, e.target.value)}
+                        placeholder={i === 0 ? 'Frame Desktop (1440px)...' : i === 1 ? 'Frame Mobile (375px)...' : `Frame ${i + 1}...`}
+                        className="w-full pl-8 pr-3 py-2.5 bg-[#F4F4F5] border border-[#E4E4E7] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#6366F1]/20 focus:border-[#6366F1] transition-all placeholder:text-[#A1A1AA]"
+                      />
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-[#A1A1AA]">
+                        {i + 1}
+                      </span>
+                    </div>
+                    {figmaUrls.length > 1 && (
+                      <button
+                        onClick={() => removeFigmaUrl(i)}
+                        className="flex-shrink-0 p-1.5 text-[#A1A1AA] hover:text-[#EF4444] hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={addFigmaUrl}
+                className="w-full flex items-center justify-center gap-2 py-2 border-2 border-dashed border-[#E4E4E7] rounded-xl text-xs font-semibold text-[#A1A1AA] hover:border-[#6366F1] hover:text-[#6366F1] hover:bg-[#6366F1]/5 transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Adicionar frame
+              </button>
+            </div>
+
+            {/* Info box */}
+            <div className="bg-[#EEF2FF] border border-[#C7D2FE] rounded-xl p-3 space-y-2">
+              <p className="text-[11px] font-bold text-[#4F46E5] uppercase tracking-wider">Como funciona</p>
+              {[
+                'O navegador abre a URL e extrai os estilos computados',
+                'Cada frame Figma é comparado no viewport correspondente',
+                'Divergências de cor, tipografia e espaçamento são reportadas',
+                'Anotações do Dev Mode são validadas no DOM',
+              ].map(item => (
+                <div key={item} className="flex items-start gap-2 text-xs text-[#4338CA]">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#6366F1] flex-shrink-0 mt-0.5" />
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── JOURNEY MODE ── */}
         {mode === 'journey' && (
@@ -293,7 +434,31 @@ export function Sidebar({ onStartAudit, onStartComponentTest, isAuditing, mode, 
 
       {/* Footer Action */}
       <div className="p-6 border-t border-[#E4E4E7] bg-white">
-        {mode === 'journey' ? (
+        {mode === 'designvsCode' ? (
+          <button
+            onClick={handleDesignVsCode}
+            disabled={isAuditing || !canRunDvsc}
+            className={cn(
+              'w-full py-4 px-4 rounded-2xl text-white font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg',
+              isAuditing || !canRunDvsc
+                ? 'bg-[#A1A1AA] cursor-not-allowed'
+                : 'bg-[#6366F1] hover:bg-[#4F46E5] hover:shadow-indigo-200 active:scale-95'
+            )}
+          >
+            {isAuditing ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Comparando...
+              </>
+            ) : (
+              <>
+                <Code2 className="w-4 h-4" />
+                Comparar Design vs. Código
+                {readyFigmaUrls > 1 && <span className="bg-white/20 text-xs px-1.5 py-0.5 rounded-full">{readyFigmaUrls}</span>}
+              </>
+            )}
+          </button>
+        ) : mode === 'journey' ? (
           <button
             onClick={handleAudit}
             disabled={isAuditing || readyFrames === 0}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Layers, Sparkles, Shield, FileText, Grid3x3 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import type { ComponentTestResults, ComponentTestCategory, ComponentState, TypeStateCoverage } from '../services/componentTestEngine';
+import type { ComponentTestResults, ComponentTestCategory, ComponentState } from '../services/componentTestEngine';
 
 // ─── Score Ring ───────────────────────────────────────────────────────────
 
@@ -95,7 +95,6 @@ function CoverageMatrix({ results }: { results: ComponentTestResults }) {
                 </thead>
                 <tbody className="divide-y divide-[#F4F4F5]">
                   {typeStateCoverage.map(row => {
-                    const presentCount  = allStateNames.filter(s => !row.missingStates.includes(s)).length;
                     const totalRequired = states.filter(s => s.required).length;
                     const rowScore      = totalRequired > 0
                       ? Math.round((totalRequired - row.missingStates.filter(ms => states.find(s => s.name === ms)?.required).length) / totalRequired * 100)
