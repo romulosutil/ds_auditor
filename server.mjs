@@ -16,10 +16,17 @@
 
 import express from 'express';
 import cors from 'cors';
+import { XMLParser } from 'fast-xml-parser';
 
 const app = express();
 const PORT = 3001;
 const MCP_URL = 'http://127.0.0.1:3845/mcp';
+
+const xmlParser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: '',
+  parseAttributeValue: true,
+});
 
 app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:5173'] }));
 app.use(express.json());
@@ -323,97 +330,97 @@ app.get('/api/health', (req, res) => {
 });
 
 /**
- * Robust XML Tree Reconstruction
+ * Robust XML Tree Reconstruction using fast-xml-parser
  */
 function parseXmlTree(xml, targetNodeId, variables, context) {
   if (!xml) return null;
-  const tagRegex = /<([\w\d]+)\s+([^>]*)\/?>/gi;
-  const attrRegex = /([\w\d-]+)="([^"]*)"/gi;
-  const allLayers = new Map();
-  let match;
-  let firstNode = null;
+  
+  const jsonObj = xmlParser.parse(xml);
+  const targetNorm = targetNodeId.replace(/:/g, '-');
 
-  while ((match = tagRegex.exec(xml)) !== null) {
-    const [_, type, attrString] = match;
-    const attrs = {};
-    let attrMatch;
-    while ((attrMatch = attrRegex.exec(attrString)) !== null) {
-      attrs[attrMatch[1]] = attrMatch[2];
+  function findNode(obj) {
+    if (!obj || typeof obj !== 'object') return null;
+    
+    // Se for um nó (checa id)
+    if (obj.id && obj.id.replace(/:/g, '-') === targetNorm) return obj;
+
+    // Busca recursiva em todas as chaves
+    for (const key in obj) {
+      if (Array.isArray(obj[key])) {
+        for (const child of obj[key]) {
+          const found = findNode(child);
+          if (found) return { node: found, type: key };
+        }
+      } else if (typeof obj[key] === 'object' && key === key.toUpperCase()) {
+        const found = findNode(obj[key]);
+        if (found) return { node: found, type: key };
+      }
     }
+    return null;
+  }
 
-    const { id, name, x, y, width, height, cornerRadius } = attrs;
-    if (!id) continue;
+  const result = findNode(jsonObj);
+  if (!result) return null;
 
+  function transform(data, type, isRoot = false) {
     const layer = {
-      id,
-      name: name || id,
-      type: type.toUpperCase(),
-      x: parseFloat(x) || 0,
-      y: parseFloat(y) || 0,
-      width: parseFloat(width) || 0,
-      height: parseFloat(height) || 0,
-      cornerRadius: cornerRadius ? parseFloat(cornerRadius) : undefined,
+      id: data.id,
+      name: data.name || data.id,
+      type: type || 'FRAME',
+      x: parseFloat(data.x) || 0,
+      y: parseFloat(data.y) || 0,
+      width: parseFloat(data.width) || 0,
+      height: parseFloat(data.height) || 0,
+      cornerRadius: data.cornerRadius ? parseFloat(data.cornerRadius) : undefined,
       fills: [],
       children: []
     };
 
-    if (!firstNode) firstNode = layer;
-
-    const normId = id.replace(/:/g, '-');
-    const normTarget = targetNodeId.replace(/:/g, '-');
-
-    if (normId === normTarget) {
+    if (isRoot) {
       applyStylesFromVariables(layer, variables);
       applyStylesFromContext(layer, context);
     }
-    
-    allLayers.set(id, layer);
-  }
 
-  const normTarget = targetNodeId.replace(/:/g, '-');
-  const root = Array.from(allLayers.values()).find(l => l.id.replace(/:/g, '-') === normTarget) || firstNode;
-  
-  if (!root) return null;
-
-  for (const [id, layer] of allLayers) {
-    if (layer === root) continue;
-    const lastDash = id.lastIndexOf('-');
-    if (lastDash !== -1) {
-      const parentId = id.substring(0, lastDash);
-      const parent = allLayers.get(parentId);
-      if (parent) {
-        parent.children.push(layer);
-        continue;
+    // Filhos são chaves em MAIÚSCULO que não sejam campos básicos
+    for (const key in data) {
+      if (key === key.toUpperCase() && !['ID', 'NAME', 'X', 'Y', 'WIDTH', 'HEIGHT', 'CORNERRADIUS'].includes(key)) {
+        const children = Array.isArray(data[key]) ? data[key] : [data[key]];
+        for (const child of children) {
+          const transformed = transform(child, key, false);
+          if (transformed) layer.children.push(transformed);
+        }
       }
     }
-    if (!root.children.includes(layer)) {
-       root.children.push(layer);
-    }
+    return layer;
   }
 
-  return root;
+  return transform(result.node, result.type, true);
 }
 
 function parseXmlMetadata(xml, targetNodeId) {
-  const tagRegex = /<([\w\d]+)\s+([^>]*)\/?>/gi;
-  const attrRegex = /([\w\d-]+)="([^"]*)"/gi;
-  let match;
-  const normTarget = targetNodeId.replace(/:/g, '-');
+  if (!xml) return { name: 'Frame', width: 0, height: 0 };
+  const jsonObj = xmlParser.parse(xml);
+  const targetNorm = targetNodeId.replace(/:/g, '-');
 
-  while ((match = tagRegex.exec(xml)) !== null) {
-    const [_, type, attrString] = match;
-    const attrs = {};
-    let attrMatch;
-    while ((attrMatch = attrRegex.exec(attrString)) !== null) {
-      attrs[attrMatch[1]] = attrMatch[2];
+  function find(obj) {
+    if (!obj || typeof obj !== 'object') return null;
+    if (obj.id && obj.id.replace(/:/g, '-') === targetNorm) return obj;
+    for (const key in obj) {
+      if (typeof obj[key] === 'object') {
+        const found = find(obj[key]);
+        if (found) return found;
+      }
     }
-    if (attrs.id && attrs.id.replace(/:/g, '-') === normTarget) {
-      return {
-        name: attrs.name,
-        width: parseFloat(attrs.width),
-        height: parseFloat(attrs.height)
-      };
-    }
+    return null;
+  }
+
+  const node = find(jsonObj);
+  if (node) {
+    return {
+      name: node.name || 'Frame',
+      width: parseFloat(node.width) || 0,
+      height: parseFloat(node.height) || 0
+    };
   }
   return { name: 'Frame', width: 0, height: 0 };
 }

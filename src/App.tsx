@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import type { SidebarMode } from './components/Sidebar';
 import { MainPanel } from './components/MainPanel';
+import { Dashboard } from './components/Dashboard';
 import { runAudit } from './services/auditEngine';
 import type { AuditResults } from './services/auditEngine';
 import { runHandoffAnalysis } from './services/handoffEngine';
 import type { HandoffResults } from './services/handoffEngine';
 import { runComponentTest } from './services/componentTestEngine';
 import type { ComponentTestResults } from './services/componentTestEngine';
+import { historyService } from './services/historyService';
 import type { FigmaNode } from './services/figmaService';
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -105,6 +107,9 @@ function App() {
           Promise.resolve(runHandoffAnalysis(node)),
         ]);
 
+        // Persistir no Histórico
+        historyService.save(node.fileName ?? 'Arquivo Figma', node.name, auditResults, handoffResults);
+
         const frame: JourneyFrame = {
           url: urls[i],
           frameName: node.name,
@@ -168,18 +173,22 @@ function App() {
         mode={sidebarMode}
         onModeChange={setSidebarMode}
       />
-      <MainPanel
-        journeyFrames={journeyFrames}
-        selectedFrameIndex={selectedFrameIndex}
-        onSelectFrame={setSelectedFrameIndex}
-        currentFrame={currentFrame}
-        componentTestResult={componentTestResult}
-        sidebarMode={sidebarMode}
-        isAuditing={isAuditing}
-        progress={progress}
-        status={auditStatus}
-        currentProcessingIndex={currentProcessingIndex}
-      />
+      {sidebarMode === 'dashboard' ? (
+        <Dashboard />
+      ) : (
+        <MainPanel
+          journeyFrames={journeyFrames}
+          selectedFrameIndex={selectedFrameIndex}
+          onSelectFrame={setSelectedFrameIndex}
+          currentFrame={currentFrame}
+          componentTestResult={componentTestResult}
+          sidebarMode={sidebarMode}
+          isAuditing={isAuditing}
+          progress={progress}
+          status={auditStatus}
+          currentProcessingIndex={currentProcessingIndex}
+        />
+      )}
     </div>
   );
 }

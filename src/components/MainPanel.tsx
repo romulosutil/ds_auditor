@@ -351,6 +351,26 @@ export function MainPanel({
     }
   };
 
+  const handleExportAll = async () => {
+    const element = document.getElementById('mass-export-container');
+    if (!element) return;
+
+    const opt = {
+      margin: [10, 10, 10, 10],
+      filename: `ds-auditor-journey-${new Date().toISOString().slice(0, 10)}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true, windowWidth: 1200 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'], avoid: '.break-inside-avoid' }
+    };
+
+    try {
+      await html2pdf().set(opt).from(element).save();
+    } catch (err) {
+      console.error('Erro ao gerar PDF em massa:', err);
+    }
+  };
+
   // ── Loading ──────────────────────────────────────────────────────────
   if (isAuditing) {
     return (
@@ -443,10 +463,24 @@ export function MainPanel({
             </div>
 
             {activeTab === 'audit' && (
-              <button onClick={handleDownloadPDF} className="flex items-center gap-2 px-4 py-2 bg-white border border-[#E4E4E7] rounded-xl text-sm font-medium text-[#3F3F46] hover:bg-[#F4F4F5] shadow-sm">
-                <Download className="w-4 h-4" />
-                PDF
-              </button>
+              <div className="flex gap-2">
+                {journeyFrames.length > 1 && (
+                  <button 
+                    onClick={handleExportAll} 
+                    className="flex items-center gap-2 px-4 py-2 bg-[#18181B] text-white rounded-xl text-sm font-medium hover:bg-[#27272A] shadow-sm transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    Exportar Tudo ({journeyFrames.length})
+                  </button>
+                )}
+                <button 
+                  onClick={handleDownloadPDF} 
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-[#E4E4E7] rounded-xl text-sm font-medium text-[#3F3F46] hover:bg-[#F4F4F5] shadow-sm transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  PDF
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -459,6 +493,52 @@ export function MainPanel({
             onSelect={onSelectFrame}
           />
         )}
+      </div>
+
+      {/* Hidden container for Mass Export */}
+      <div style={{ position: 'absolute', left: '-9999px', top: 0, width: '1200px' }}>
+        <div id="mass-export-container">
+          {journeyFrames.map((frame, index) => (
+            <div key={index} className={index > 0 ? 'html2pdf__page-break' : ''}>
+               <div className="p-12 space-y-8 bg-white">
+                  <div className="flex justify-between items-end border-b pb-6">
+                    <div>
+                      <h1 className="text-3xl font-bold text-[#18181B]">{frame.fileName}</h1>
+                      <p className="text-[#71717A] text-sm">Relatório de Auditoria — Frame: {frame.frameName}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-bold text-[#A1A1AA] uppercase">Página {index + 1} de {journeyFrames.length}</p>
+                      <p className="text-[10px] text-[#A1A1AA]">{new Date().toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  
+                  <ScoreCards
+                    score={frame.auditResults.score}
+                    compliance={frame.auditResults.compliance}
+                    criticalErrors={frame.auditResults.criticalErrors}
+                    alerts={frame.auditResults.alerts}
+                  />
+
+                  <div className="space-y-6">
+                    <h3 className="text-xl font-semibold border-l-4 border-[#6366F1] pl-4">Inspeção Detalhada</h3>
+                    <div className="space-y-4">
+                      {Object.entries(frame.auditResults.categories).map(([catId, issues]) =>
+                        issues && issues.length > 0 ? (
+                          <div key={catId} className="break-inside-avoid">
+                            <CategoryDetails
+                              title={CATEGORY_LABELS[catId as AuditCategory]}
+                              type={issues.some(i => i.severity === 'error') ? 'error' : 'warning'}
+                              issues={issues}
+                            />
+                          </div>
+                        ) : null
+                      )}
+                    </div>
+                  </div>
+               </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Content */}

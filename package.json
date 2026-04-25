@@ -1,9 +1,13 @@
 {
   "name": "ds_auditor",
   "version": "1.0.0",
+  "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "verify-mapping": "node verify_mapping.mjs",
     "dev": "vite",
     "proxy": "node server.mjs",
     "build": "tsc && vite build",
@@ -18,6 +22,7 @@
     "clsx": "^2.1.1",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "fast-xml-parser": "^5.7.2",
     "html2pdf.js": "^0.14.0",
     "lucide-react": "^0.577.0",
     "react": "^19.2.4",
@@ -29,9 +34,11 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
+    "@vitest/coverage-v8": "^4.1.5",
     "autoprefixer": "^10.4.27",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.5"
   }
 }

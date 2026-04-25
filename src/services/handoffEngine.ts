@@ -1,9 +1,9 @@
 /**
  * handoffEngine.ts
  *
- * "O Handoff Perfeito (As 4 Verdades)"
+ * "O Handoff Perfeito (As 4 Verdades + Performance)"
  * Analisa um FigmaNode para verificar a completude do handoff para dev,
- * baseado nos 4 pilares: Estados, Regras de Negócio, Escopo e Acessibilidade/Tokens.
+ * baseado em 5 pilares: Estados, Regras, Escopo, Acessibilidade e Performance DX.
  */
 
 import type { FigmaNode, FigmaLayer } from './figmaService';
@@ -20,7 +20,7 @@ export interface HandoffItem {
 }
 
 export interface HandoffPillar {
-  id: 'states' | 'rules' | 'scope' | 'a11y';
+  id: 'states' | 'rules' | 'scope' | 'a11y' | 'performance';
   title: string;
   description: string;
   score: number;
@@ -86,19 +86,32 @@ function collectTokensUsed(layer: FigmaLayer, acc: Set<string> = new Set()): Set
   return acc;
 }
 
+function calculateTreeDepth(layer: FigmaLayer): number {
+  if (!layer.children || layer.children.length === 0) return 1;
+  return 1 + Math.max(...layer.children.map(calculateTreeDepth));
+}
+
+function countHiddenLayers(layer: FigmaLayer): number {
+  let count = (layer as any).visible === false ? 1 : 0;
+  if (layer.children) {
+    count += layer.children.reduce((acc, child) => acc + countHiddenLayers(child), 0);
+  }
+  return count;
+}
+
 // ─── Main ──────────────────────────────────────────────────────────────────
 
 export function runHandoffAnalysis(node: FigmaNode): HandoffResults {
   // Collect all layer names from the frame
   const allNames: string[] = [node.name.toLowerCase()];
   for (const layer of node.layers) {
-    allNames.push(...collectLayerNames(layer));
+    allNames.push(...collectLayerNames(layer as unknown as FigmaLayer));
   }
 
   // Collect tokens used across all layers
   const tokensSet = new Set<string>();
   for (const layer of node.layers) {
-    collectTokensUsed(layer, tokensSet);
+    collectTokensUsed(layer as unknown as FigmaLayer, tokensSet);
   }
   const tokensUsed = Array.from(tokensSet).slice(0, 12);
 
@@ -287,8 +300,46 @@ export function runHandoffAnalysis(node: FigmaNode): HandoffResults {
     (a11yPillar.items.filter(i => i.found).length / a11yPillar.items.length) * 100
   );
 
+  // ── Pilar 5: Performance de Estrutura ───────────────────────────────
+  const maxDepth = node.layers.reduce((max, l) => Math.max(max, calculateTreeDepth(l as unknown as FigmaLayer)), 0);
+  const hiddenCount = node.layers.reduce((acc, l) => acc + countHiddenLayers(l as unknown as FigmaLayer), 0);
+  const totalLayers = allNames.length;
+
+  const performancePillar: HandoffPillar = {
+    id: 'performance',
+    title: '5. Performance de Estrutura',
+    description: 'Qualidade técnica da árvore de camadas (DX - Developer Experience).',
+    score: 0,
+    items: [
+      {
+        id: 'tree-depth',
+        label: `Profundidade de Árvore (${maxDepth} níveis)`,
+        found: maxDepth <= 12,
+        required: false,
+        tip: 'Árvores muito profundas dificultam a navegação do dev. Tente simplificar grupos aninhados.',
+      },
+      {
+        id: 'hidden-layers',
+        label: `Camadas Ocultas (${hiddenCount} detectadas)`,
+        found: hiddenCount <= 5,
+        required: false,
+        tip: 'Muitas camadas ocultas poluem o arquivo e o código gerado. Remova o que não é necessário.',
+      },
+      {
+        id: 'layer-count',
+        label: `Complexidade de Frame (${totalLayers} camadas)`,
+        found: totalLayers < 250,
+        required: true,
+        tip: 'Frames com mais de 250 camadas podem causar lentidão no Dev Mode e exportação.',
+      }
+    ],
+  };
+  performancePillar.score = Math.round(
+    (performancePillar.items.filter(i => i.found).length / performancePillar.items.length) * 100
+  );
+
   // ── Overall Score ──────────────────────────────────────────────────────
-  const pillars = [statesPillar, rulesPillar, scopePillar, a11yPillar];
+  const pillars = [statesPillar, rulesPillar, scopePillar, a11yPillar, performancePillar];
   // Required items weight more
   const requiredItems  = pillars.flatMap(p => p.items.filter(i => i.required));
   const optionalItems  = pillars.flatMap(p => p.items.filter(i => !i.required));

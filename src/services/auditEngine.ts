@@ -203,15 +203,38 @@ export function checkSpacing(layers: FigmaLayer[]): AuditIssue[] {
 export function checkRadii(layers: FigmaLayer[]): AuditIssue[] {
   const issues: AuditIssue[] = [];
   layers.forEach(l => {
-    if (l.cornerRadius !== undefined && !DS4FUN_RADII.has(l.cornerRadius)) {
-      issues.push({
-        category: 'radii',
-        severity: 'warning',
-        message: `Raio de borda incorreto: ${l.cornerRadius}px.`,
-        suggestion: 'Use 8px (componentes), 16px (containers) ou 9999px (pill).',
-        layerId: l.id, layerName: l.name,
-        x: l.x, y: l.y, width: l.width, height: l.height
-      });
+    // Ignora camadas que naturalmente não teriam raio (como TEXT)
+    if (l.type === 'TEXT') return;
+
+    if (l.cornerRadius !== undefined && l.cornerRadius > 0) {
+      // 1. Verifica se está na escala
+      if (!DS4FUN_RADII.has(l.cornerRadius)) {
+        issues.push({
+          category: 'radii',
+          severity: 'error',
+          message: `Raio de borda fora da escala: ${l.cornerRadius}px.`,
+          suggestion: 'Use 4px (radius-sm), 8px (radius-md), 16px (radius-lg) ou 9999px (radius-full).',
+          layerId: l.id, layerName: l.name,
+          x: l.x, y: l.y, width: l.width, height: l.height
+        });
+      }
+
+      // 2. Verifica se usou token
+      // Tentamos inferir o token pelo nome da camada ou por metadados de variáveis
+      const hasToken = (l as any).radiusToken !== undefined || 
+                       l.name.toLowerCase().includes('radius-') ||
+                       (l as any).variableName?.toLowerCase().includes('radius');
+      
+      if (!hasToken && l.cornerRadius > 0) {
+        issues.push({
+          category: 'radii',
+          severity: 'warning',
+          message: `Raio de borda (${l.cornerRadius}px) aplicado sem token.`,
+          suggestion: `Vincule este valor a um token de design (ex: radius-${l.cornerRadius === 8 ? 'md' : 'sm'}) para garantir consistência.`,
+          layerId: l.id, layerName: l.name,
+          x: l.x, y: l.y, width: l.width, height: l.height
+        });
+      }
     }
   });
   return issues;
@@ -236,16 +259,53 @@ export function checkComponents(layers: FigmaLayer[]): AuditIssue[] {
 }
 
 export function checkNaming(layers: FigmaLayer[]): AuditIssue[] {
-  return layers
-    .filter(l => l.name.startsWith('Frame ') || l.name.startsWith('Group '))
-    .map(l => ({
-      category: 'naming',
-      severity: 'warning',
-      message: `Camada com nome genérico detectada: ${l.name}.`,
-      suggestion: 'Renomeie a camada para descrever sua função (ex: CardContent, IconButton).',
-      layerId: l.id, layerName: l.name,
-      x: l.x, y: l.y, width: l.width, height: l.height
-    }));
+  const issues: AuditIssue[] = [];
+  const pascalCaseRegex = /^[A-Z][a-zA-Z0-9]*$/;
+  const genericNames = ['Frame', 'Group', 'Retângulo', 'Rectangle', 'Ellipse', 'Vector', 'Vector '];
+
+  layers.forEach(l => {
+    const isGeneric = genericNames.some(g => l.name.startsWith(g) && (l.name.length === g.length || /\s\d+$/.test(l.name)));
+    
+    // 1. Bloqueia nomes genéricos
+    if (isGeneric) {
+      issues.push({
+        category: 'naming',
+        severity: 'error',
+        message: `Nome genérico detectado: "${l.name}".`,
+        suggestion: 'Renomeie a camada para descrever sua função (ex: Header, LoginButton).',
+        layerId: l.id, layerName: l.name,
+        x: l.x, y: l.y, width: l.width, height: l.height
+      });
+    }
+
+    // 2. Valida PascalCase para Frames e Grupos (não genéricos)
+    if ((l.type === 'FRAME' || l.type === 'GROUP') && !isGeneric) {
+      if (!pascalCaseRegex.test(l.name)) {
+        issues.push({
+          category: 'naming',
+          severity: 'warning',
+          message: `Nomenclatura fora do padrão PascalCase: "${l.name}".`,
+          suggestion: `Use PascalCase para organizar melhor o projeto (ex: ${l.name.charAt(0).toUpperCase() + l.name.slice(1).replace(/[^a-zA-Z0-9]/g, '')}).`,
+          layerId: l.id, layerName: l.name,
+          x: l.x, y: l.y, width: l.width, height: l.height
+        });
+      }
+    }
+
+    // 3. Valida padrão de instâncias (Categoria/Componente)
+    if (l.type === 'INSTANCE' && !l.name.includes('/')) {
+      issues.push({
+        category: 'naming',
+        severity: 'warning',
+        message: `Instância sem separador de categoria: "${l.name}".`,
+        suggestion: 'Componentes devem seguir o padrão "Categoria/Nome" (ex: Atoms/Button).',
+        layerId: l.id, layerName: l.name,
+        x: l.x, y: l.y, width: l.width, height: l.height
+      });
+    }
+  });
+
+  return issues;
 }
 
 export function checkBorders(layers: FigmaLayer[]): AuditIssue[] {

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Layers, Palette, Baseline, ScanLine, Maximize, FileText, CheckCircle2, Search, AlertCircle, Zap, Accessibility, Sparkles, Plus, X, FlaskConical, Map } from 'lucide-react';
+import { Layers, Palette, Baseline, ScanLine, Maximize, FileText, CheckCircle2, Search, AlertCircle, Zap, Accessibility, Sparkles, Plus, X, FlaskConical, Map, BarChart3 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { checkProxyHealth } from '../services/figmaService';
 
-export type SidebarMode = 'journey' | 'component';
+export type SidebarMode = 'journey' | 'component' | 'dashboard';
 
 interface SidebarProps {
   onStartAudit: (urls: string[], activeCategories: Set<string>) => void;
@@ -96,7 +96,7 @@ export function Sidebar({ onStartAudit, onStartComponentTest, isAuditing, mode, 
           <button
             onClick={() => onModeChange('journey')}
             className={cn(
-              'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all',
+              'flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[10px] font-bold transition-all',
               mode === 'journey'
                 ? 'bg-white text-[#18181B] shadow-sm'
                 : 'text-[#71717A] hover:text-[#3F3F46]'
@@ -108,20 +108,44 @@ export function Sidebar({ onStartAudit, onStartComponentTest, isAuditing, mode, 
           <button
             onClick={() => onModeChange('component')}
             className={cn(
-              'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all',
+              'flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[10px] font-bold transition-all',
               mode === 'component'
                 ? 'bg-white text-[#18181B] shadow-sm'
                 : 'text-[#71717A] hover:text-[#3F3F46]'
             )}
           >
             <FlaskConical className="w-3.5 h-3.5" />
-            Componente
+            Comp
+          </button>
+          <button
+            onClick={() => onModeChange('dashboard')}
+            className={cn(
+              'flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[10px] font-bold transition-all',
+              mode === 'dashboard'
+                ? 'bg-white text-[#18181B] shadow-sm'
+                : 'text-[#71717A] hover:text-[#3F3F46]'
+            )}
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            Saúde
           </button>
         </div>
       </div>
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
+
+        {/* ── DASHBOARD MODE ── */}
+        {mode === 'dashboard' && (
+          <div className="space-y-4">
+             <div className="bg-[#6366F1]/10 border border-[#6366F1]/20 rounded-2xl p-4">
+                <p className="text-[11px] text-[#6366F1] font-bold uppercase tracking-wider mb-1">Métricas de Evolução</p>
+                <p className="text-xs text-[#4F46E5] leading-relaxed">
+                  Acompanhe a saúde do seu Design System através de dados históricos consolidados.
+                </p>
+             </div>
+          </div>
+        )}
 
         {/* ── JOURNEY MODE ── */}
         {mode === 'journey' && (
@@ -177,13 +201,6 @@ export function Sidebar({ onStartAudit, onStartComponentTest, isAuditing, mode, 
                 <Plus className="w-3.5 h-3.5" />
                 Adicionar frame
               </button>
-
-              {readyFrames > 0 && !isAuditing && (
-                <div className="text-[10px] text-[#71717A] flex items-center gap-1.5 px-1 font-medium bg-[#FAFAFA] p-2 rounded-lg border border-[#F4F4F5]">
-                  <Zap className="w-3 h-3 text-[#EAB308]" />
-                  <span>{readyFrames} frame{readyFrames !== 1 ? 's' : ''} · análise completa + handoff</span>
-                </div>
-              )}
             </div>
 
             {/* Filtros de Auditoria */}
@@ -237,28 +254,6 @@ export function Sidebar({ onStartAudit, onStartComponentTest, isAuditing, mode, 
                 <Search className="w-4 h-4 text-[#A1A1AA] absolute left-3.5 top-1/2 -translate-y-1/2" />
               </div>
             </div>
-
-            <div className="bg-[#F4F4F5] rounded-2xl p-4 space-y-2">
-              <p className="text-[11px] font-bold text-[#71717A] uppercase tracking-wider">O que é verificado</p>
-              {[
-                'Cobertura de estados obrigatórios',
-                'Estados faltantes ou excedentes',
-                'Uso de tokens DS4FUN',
-                'Acessibilidade (foco, touch target)',
-                'Convenções de nomenclatura',
-              ].map(item => (
-                <div key={item} className="flex items-center gap-2 text-xs text-[#3F3F46]">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981] flex-shrink-0" />
-                  {item}
-                </div>
-              ))}
-            </div>
-
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-              <p className="text-[11px] text-amber-700 font-medium leading-relaxed">
-                💡 Para melhores resultados, cole a URL de um <strong>componente isolado</strong> (ex: Button, Input) — não de um frame completo.
-              </p>
-            </div>
           </div>
         )}
 
@@ -276,16 +271,6 @@ export function Sidebar({ onStartAudit, onStartComponentTest, isAuditing, mode, 
               </div>
               <div className="w-3 h-3 rounded-full bg-[#10B981] shadow-[0_0_8px_#10B981]" />
             </div>
-            <div className="grid grid-cols-2 gap-4 text-xs relative z-10 pt-2 border-t border-white/5">
-              <div className="flex flex-col">
-                <span className="font-bold text-white text-base">786</span>
-                <span className="text-[9px] text-[#71717A] uppercase font-bold tracking-widest">Variáveis</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="font-bold text-white text-base">42</span>
-                <span className="text-[9px] text-[#71717A] uppercase font-bold tracking-widest">Components</span>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -293,7 +278,7 @@ export function Sidebar({ onStartAudit, onStartComponentTest, isAuditing, mode, 
 
       {/* Footer Action */}
       <div className="p-6 border-t border-[#E4E4E7] bg-white">
-        {mode === 'journey' ? (
+        {mode === 'journey' && (
           <button
             onClick={handleAudit}
             disabled={isAuditing || readyFrames === 0}
@@ -301,23 +286,14 @@ export function Sidebar({ onStartAudit, onStartComponentTest, isAuditing, mode, 
               'w-full py-4 px-4 rounded-2xl text-white font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg',
               isAuditing || readyFrames === 0
                 ? 'bg-[#A1A1AA] cursor-not-allowed'
-                : 'bg-[#6366F1] hover:bg-[#4F46E5] hover:shadow-indigo-200 active:scale-95'
+                : 'bg-[#6366F1] hover:bg-[#4F46E5] active:scale-95'
             )}
           >
-            {isAuditing ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Analisando...
-              </>
-            ) : (
-              <>
-                <Zap className="w-4 h-4 fill-current" />
-                Analisar Jornada
-                {readyFrames > 1 && <span className="bg-white/20 text-xs px-1.5 py-0.5 rounded-full">{readyFrames}</span>}
-              </>
-            )}
+            <Zap className="w-4 h-4 fill-current" />
+            {isAuditing ? 'Analisando...' : 'Analisar Jornada'}
           </button>
-        ) : (
+        )}
+        {mode === 'component' && (
           <button
             onClick={handleComponentTest}
             disabled={isAuditing || !componentUrl.trim()}
@@ -325,21 +301,17 @@ export function Sidebar({ onStartAudit, onStartComponentTest, isAuditing, mode, 
               'w-full py-4 px-4 rounded-2xl text-white font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg',
               isAuditing || !componentUrl.trim()
                 ? 'bg-[#A1A1AA] cursor-not-allowed'
-                : 'bg-[#10B981] hover:bg-[#059669] hover:shadow-emerald-200 active:scale-95'
+                : 'bg-[#10B981] hover:bg-[#059669] active:scale-95'
             )}
           >
-            {isAuditing ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Testando...
-              </>
-            ) : (
-              <>
-                <FlaskConical className="w-4 h-4" />
-                Testar Componente
-              </>
-            )}
+            <FlaskConical className="w-4 h-4" />
+            {isAuditing ? 'Testando...' : 'Testar Componente'}
           </button>
+        )}
+        {mode === 'dashboard' && (
+           <div className="text-center">
+              <p className="text-[10px] text-[#A1A1AA] font-bold uppercase">Visão Analítica Ativa</p>
+           </div>
         )}
       </div>
     </aside>
