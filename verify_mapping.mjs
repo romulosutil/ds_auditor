@@ -19,8 +19,10 @@ console.log('🔍 Iniciando verificação de mapeamento 1:1:1:1...\n');
 
 let errors = 0;
 
-// 1. Verificar Pasta Local
-if (fs.existsSync(CONFIG.local_path)) {
+// 1. Verificar Pasta Local (só faz sentido na máquina do desenvolvedor; no CI a pasta não existe)
+if (process.env.CI) {
+  console.log('⏭️ [1/4] Pasta Local: ignorada no CI');
+} else if (fs.existsSync(CONFIG.local_path)) {
   console.log('✅ [1/4] Pasta Local: OK');
 } else {
   console.error('❌ [1/4] Pasta Local: Não encontrada em ' + CONFIG.local_path);
