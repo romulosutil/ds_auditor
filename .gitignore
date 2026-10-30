@@ -1,0 +1,33 @@
+# Dependencias e build
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.vite/
+
+# Variaveis de ambiente (manter apenas o exemplo)
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# SO / editor
+.DS_Store
+Thumbs.db
+
+# Claude Code (arquivos locais/gerados)
+.claude/worktrees/
+.claude/settings.local.json
+
+# Ferramentas geradas
+.impeccable/
+brag-output/
+graphify-out/
+
+# Saidas de erro geradas (tsc / vite build)
+typescript-errors.txt
+vite-build-errors.txt
